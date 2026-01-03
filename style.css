@@ -272,3 +272,9 @@ input:focus {
   width:24px;
   height:24px;
 }
+
+#date-picker{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
