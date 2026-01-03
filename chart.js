@@ -5,9 +5,9 @@
       type: 'line',
       data: {
         labels: [
-          '07-01', '07-02', '07-03', 
-          '07-04', '07-05', '07-06',
-          '07-07', '07-08'
+          '07/01', '07/02', '07/03', 
+          '07/04', '07/05', '07/06',
+          '07/07', '07/08'
         ],
         datasets: [{
           label: 'Weight',
@@ -61,11 +61,23 @@
       }
     })
 
-    datePicker.addEventListener('change', (e) =>{
-      const selectedDate = e.target.value;
+    // Format an ISO date string (YYYY-MM-DD) for display.
+    // Shows month/day for current-year dates, includes year otherwise.
+    function formatSelectedDate(isoDate) {
+      if (!isoDate) return '';
+      const [y, m, d] = isoDate.split('-');
+      const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+      const nowYear = new Date().getFullYear();
+      const optsNoYear = { month: '2-digit', day: '2-digit' };
+      const optsWithYear = { month: '2-digit', day: '2-digit', year: 'numeric' };
+      const fmt = new Intl.DateTimeFormat(undefined, Number(y) === nowYear ? optsNoYear : optsWithYear);
+      return fmt.format(dateObj);
+    }
 
+    datePicker.addEventListener('change', (e) => {
+      const selectedDate = e.target.value; // YYYY-MM-DD
       if (selectedDate) {
-        dateBtn.textContent = selectedDate;
+        dateBtn.textContent = formatSelectedDate(selectedDate);
       }
     })
 
@@ -73,12 +85,13 @@
 // TODO: Compare date (if it's not in this year, show year number, otherwise, skip it)
 
 
-    function updateMyChart(value) {
+    function updateMyChart(value, isoDate) {
       myChart.data.datasets[0].data.push(value);
-      myChart.data.labels.push("07-09");
-      // !! Update this later with real dates
+      // Use provided ISO date or today's date as ISO
+      const dateISO = isoDate || new Date().toISOString().slice(0, 10);
+      myChart.data.labels.push(formatSelectedDate(dateISO));
       myChart.update();
-    } 
+    }
 
     const inputWeight = document.getElementById("input-weight")
     const saveBtn = document.getElementById("save-btn")
@@ -90,8 +103,9 @@
         alert("Please enter valid number!")
         return;
       }
-      updateMyChart(newWeight);
+      // pass the selected date (ISO) so the chart label matches the picker
+      const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
+      updateMyChart(newWeight, selectedISO);
       inputWeight.value='';
-    }
-    )
+    })
 
