@@ -226,6 +226,14 @@ input:focus {
   position:absolute;
   right:16px;
   bottom:24px;
+  /* Prevents the blue selection block */
+  -webkit-user-select: none;
+  /* Safari/Chrome */
+  user-select: none;
+  /* Standard */
+  /* Prevents the callout menu (like 'Open in new tab') on long press */
+  -webkit-touch-callout: none;
+  /* Already mentioned, but critical for the tap flash */
   -webkit-tap-highlight-color: transparent;
 }
 
