@@ -195,37 +195,72 @@ datePicker.addEventListener('change', (e) => {
 })
 
 // Helper: animate text change for summary values
-function animateTextChange(el, newText) {
+function animateTextChange(el, newText, delayMs = 0) {
   if (!el) return
-  // Ensure the element uses the change-anim class
-  el.classList.add('change-anim')
   const oldText = el.textContent || ''
   if (oldText === newText) return
-
-  const oldSpan = document.createElement('span')
-  oldSpan.className = 'change-value old'
-  oldSpan.textContent = oldText
-
-  const newSpan = document.createElement('span')
-  newSpan.className = 'change-value new'
-  newSpan.textContent = newText
-
-  // Clear and append spans
-  el.innerHTML = ''
-  el.appendChild(oldSpan)
-  el.appendChild(newSpan)
-
-  // Trigger animation in next frame
-  requestAnimationFrame(() => {
-    oldSpan.classList.add('exit')
-    newSpan.classList.add('enter')
-  })
-
-  // After transition, cleanup and set final text
+  // run the animation after the optional delay
   setTimeout(() => {
-    el.classList.remove('change-anim')
-    el.textContent = newText
-  }, 360)
+    // Ensure the element uses the change-anim class
+    el.classList.add('change-anim')
+
+    // Preserve layout: lock min-width to the larger of current and new text
+    // so the parent flex container doesn't resize during animation.
+    const prevDisplay = el.style.display || ''
+    if (!el.style.display) el.style.display = 'inline-block'
+    const oldWidth = el.getBoundingClientRect().width || 0
+    const meas = document.createElement('span')
+    meas.style.position = 'absolute'
+    meas.style.visibility = 'hidden'
+    meas.style.whiteSpace = 'nowrap'
+    meas.style.font = getComputedStyle(el).font
+    meas.textContent = newText
+    document.body.appendChild(meas)
+    const newWidth = meas.getBoundingClientRect().width || 0
+    document.body.removeChild(meas)
+    const targetMin = Math.max(oldWidth, newWidth)
+    el.style.minWidth = targetMin + 'px'
+
+    const oldSpan = document.createElement('span')
+    oldSpan.className = 'change-value old'
+    oldSpan.textContent = oldText
+
+    const newSpan = document.createElement('span')
+    newSpan.className = 'change-value new'
+    newSpan.textContent = newText
+
+    // Clear and append spans
+    el.innerHTML = ''
+    el.appendChild(oldSpan)
+    el.appendChild(newSpan)
+
+    // Trigger animation in next frame
+    requestAnimationFrame(() => {
+      // Force style/layout so the `.new` transform is applied before we add `.enter`.
+      // This prevents the new element from jumping to the destination immediately.
+      newSpan.getBoundingClientRect()
+
+      oldSpan.classList.add('exit')
+      // compute transition durations (in ms) and start the enter animation halfway
+      const oldDur = parseFloat(getComputedStyle(oldSpan).transitionDuration || '0.2') * 1000
+      const newDur = parseFloat(getComputedStyle(newSpan).transitionDuration || '0.2') * 1000
+      const enterDelay = Math.max(20, Math.floor(oldDur / 2))
+      setTimeout(() => {
+        newSpan.classList.add('enter');
+      }, enterDelay);
+
+      // cleanup after the longer of the two transitions finishes
+      const cleanupAfter = Math.max(isNaN(oldDur) ? 200 : oldDur, isNaN(newDur) ? 200 : newDur) + 40
+      setTimeout(() => {
+        el.classList.remove('change-anim')
+        el.textContent = newText
+        // restore any inline display style and remove temporary min-width
+        if (prevDisplay) el.style.display = prevDisplay
+        else el.style.removeProperty('display')
+        el.style.removeProperty('min-width')
+      }, cleanupAfter)
+    })
+  }, delayMs)
 }
 
 
@@ -296,14 +331,8 @@ function updateSummaryStats(entriesArr) {
   const first = entriesArr[0]
   const latest = entriesArr[entriesArr.length - 1]
 
-  // Today's weight and goal
-  todayWeight.textContent = `${latest.weight}kg`
+  // Today's weight and goal (values will be animated in a stagger after deltas computed)
   const goal = 55
-  weightToGoal.textContent = `${Math.abs((latest.weight - goal)).toFixed(1)}kg`
-
-  // Total change (since first record)
-  const totalDelta = +(latest.weight - first.weight)
-  animateTextChange(document.getElementById('total-weight-change'), `${totalDelta.toFixed(1)}kg`)
 
   // Today change: compare to yesterday if available, else previous entry if any
   // Use local today as primary reference; fall back to latest if no today's entry
@@ -321,7 +350,6 @@ function updateSummaryStats(entriesArr) {
     refToday = (idxToday > 0) ? entriesArr[idxToday - 1] : todayEntry
   }
   const todayDelta = +(todayEntry.weight - refToday.weight)
-  todayWeightChange && animateTextChange(todayWeightChange, formatDelta(todayDelta))
 
   // This week change: compare to Monday of the latest's week
   // This week: base on local today
@@ -333,7 +361,6 @@ function updateSummaryStats(entriesArr) {
   const mondayISO = toLocalISO(monday)
   let refWeek = entriesArr.find(e => e.iso >= mondayISO) || entriesArr.find(e => e.iso <= mondayISO) || todayEntry
   const weekDelta = +(todayEntry.weight - refWeek.weight)
-  thisWeekWeightChange && animateTextChange(thisWeekWeightChange, formatDelta(weekDelta))
 
   // This month change: compare to first day of latest's month
   // This month: base on local today
@@ -341,5 +368,20 @@ function updateSummaryStats(entriesArr) {
   const firstOfMonthISO = toLocalISO(firstOfMonth)
   let refMonth = entriesArr.find(e => e.iso >= firstOfMonthISO) || entriesArr.find(e => e.iso <= firstOfMonthISO) || todayEntry
   const monthDelta = +(todayEntry.weight - refMonth.weight)
-  thisMonthWeightChange && animateTextChange(thisMonthWeightChange, formatDelta(monthDelta))
+
+  // Now apply staggered animations from top-left -> bottom-right
+  const STAGGER_MS = 60;
+  const staggerOrder = [
+    { el: todayWeight, text: `${todayEntry.weight}kg` },
+    { el: weightToGoal, text: `${Math.abs((todayEntry.weight - goal)).toFixed(1)}kg` },
+    { el: document.getElementById('total-weight-change'), text: `${(latest.weight - first.weight).toFixed(1)}kg` },
+    { el: todayWeightChange, text: formatDelta(todayDelta) },
+    { el: thisWeekWeightChange, text: formatDelta(weekDelta) },
+    { el: thisMonthWeightChange, text: formatDelta(monthDelta) }
+  ]
+
+  staggerOrder.forEach((item, idx) => {
+    if (!item.el || typeof item.text === 'undefined') return
+    animateTextChange(item.el, item.text, idx * STAGGER_MS)
+  })
 }
