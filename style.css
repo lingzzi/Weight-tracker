@@ -240,7 +240,7 @@ input:focus {
 .FAB:focus {
   background-color:#4F4F4F;
   border-radius: 50%;
-  outline:none !important;
+  outline: none !important;
 }
 
 .bottom-sheet {
