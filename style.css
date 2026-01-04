@@ -67,98 +67,69 @@ html, body {
   letter-spacing: 0.2;
 }
 
-/* Animated numeric change for summary cards */
-.label-large.change-anim {
-  display: inline-block;
-  position: relative;
-  overflow: hidden;
-  height:1em;
-  line-height: 1;
-}
-
-.label-large.change-anim .change-value {
-  display: inline-block;
-  transition: transform 200ms, opacity 200ms;
-  will-change: transform, opacity;
-  /* inherit text metrics to avoid flicker when replacing content */
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  line-height: inherit;
-  color: inherit;
-  -webkit-font-smoothing: antialiased;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-.label-large.change-anim .change-value.exit {
-  transform: translateY(-30%);
-  opacity: 0;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.label-large.change-anim .change-value.enter {
-  transform: translateY(0%);
-  opacity: 1;
-  transition-timing-function: cubic-bezier(0.64, 0, 0.78, 0);
-}
-
-.label-large.change-anim .change-value.new {
-  transform: translateY(30%);
-  opacity: 0;
-}
-
 /* Generic change-anim for other sized labels (e.g. display-medium) */
 .change-anim {
   display: inline-block;
   position: relative;
-  vertical-align: middle;
-  line-height: 1;
   overflow: hidden;
+  vertical-align: middle;
 }
 
 .change-anim .change-value {
   display: inline-block;
-  transition: transform 450ms, opacity 450ms;
-  will-change: transform, opacity;
+  position: absolute;
+  width: 100%;
+  white-space: nowrap;
+  transition: 
+    transform 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 450ms cubic-bezier(0.22, 1, 0.36, 1);
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
   line-height: inherit;
   color: inherit;
   -webkit-font-smoothing: antialiased;
-  backface-visibility: hidden;
+}
+
+.change-anim .change-value.new {
+  transform: translateY(100%) !important;; 
+  opacity: 0;
+}
+
+.change-anim .change-value.new.enter {
+  transform: translateY(0%) !important;
+  opacity: 1!important;
+}
+
+.change-anim .change-value.exit {
+  transform: translateY(-100%) !important;
+  opacity: 0 !important;
 }
 
 .display-medium.change-anim {
   display: inline-block;
   position: relative;
-  overflow: hidden;
-  height: 1em;
+  text-align: left;
+  height: 36px;
   line-height: 1;
+  overflow: hidden;
 }
 
 .display-medium.change-anim .change-value {
   display: inline-block;
   width: 100%;
-  text-align: left;
 }
 
-.change-anim .change-value.new {
-  transform: translateY(50%);
-  opacity: 0;
+.label-large.change-anim {
+  display: inline-block;
+  position: relative;
+  height: 16px;
 }
 
-.change-anim .change-value.exit {
-  transform: translateY(-50%);
-  opacity: 0;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.change-anim .change-value.enter {
-  transform: translateY(0%);
-  opacity: 1;
-  transition-timing-function: cubic-bezier(0.64, 0, 0.78, 0);
+.label-large.change-anim .change-value {
+  display: inline-block;
+  width: 100%;
+  text-align: left; 
 }
 
 /* Reset */

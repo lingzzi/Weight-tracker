@@ -194,32 +194,26 @@ datePicker.addEventListener('change', (e) => {
   }
 })
 
-// Helper: animate text change for summary values
+// Animate text change for summary values
 function animateTextChange(el, newText, delayMs = 0) {
   if (!el) return
   const oldText = el.textContent || ''
   if (oldText === newText) return
+  // Cancel any prior scheduled animations on this element so they don't
+  // interrupt the current run (prevents jumps when called repeatedly).
+  if (el._changeAnimTimers) {
+    el._changeAnimTimers.forEach(id => clearTimeout(id))
+    el._changeAnimTimers = null
+  }
+
   // run the animation after the optional delay
-  setTimeout(() => {
+  const startTimer = setTimeout(() => {
     // Ensure the element uses the change-anim class
     el.classList.add('change-anim')
 
-    // Preserve layout: lock min-width to the larger of current and new text
-    // so the parent flex container doesn't resize during animation.
+    // remember previous display so we can restore it later
     const prevDisplay = el.style.display || ''
     if (!el.style.display) el.style.display = 'inline-block'
-    const oldWidth = el.getBoundingClientRect().width || 0
-    const meas = document.createElement('span')
-    meas.style.position = 'absolute'
-    meas.style.visibility = 'hidden'
-    meas.style.whiteSpace = 'nowrap'
-    meas.style.font = getComputedStyle(el).font
-    meas.textContent = newText
-    document.body.appendChild(meas)
-    const newWidth = meas.getBoundingClientRect().width || 0
-    document.body.removeChild(meas)
-    const targetMin = Math.max(oldWidth, newWidth)
-    el.style.minWidth = targetMin + 'px'
 
     const oldSpan = document.createElement('span')
     oldSpan.className = 'change-value old'
@@ -234,33 +228,46 @@ function animateTextChange(el, newText, delayMs = 0) {
     el.appendChild(oldSpan)
     el.appendChild(newSpan)
 
-    // Trigger animation in next frame
+    // Use double RAF and a timed delay so the `.new` starting transform/opacity
+    // is applied before we add `.enter`. This reliably triggers the transition.
     requestAnimationFrame(() => {
-      // Force style/layout so the `.new` transform is applied before we add `.enter`.
-      // This prevents the new element from jumping to the destination immediately.
+      // ensure initial styles are flushed
+      void newSpan.offsetWidth;
       newSpan.getBoundingClientRect()
-
       oldSpan.classList.add('exit')
-      // compute transition durations (in ms) and start the enter animation halfway
+
       const oldDur = parseFloat(getComputedStyle(oldSpan).transitionDuration || '0.2') * 1000
       const newDur = parseFloat(getComputedStyle(newSpan).transitionDuration || '0.2') * 1000
       const enterDelay = Math.max(20, Math.floor(oldDur / 2))
-      setTimeout(() => {
-        newSpan.classList.add('enter');
-      }, enterDelay);
+
+      const enterTimer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          newSpan.classList.add('enter')
+        })
+      }, enterDelay)
 
       // cleanup after the longer of the two transitions finishes
       const cleanupAfter = Math.max(isNaN(oldDur) ? 200 : oldDur, isNaN(newDur) ? 200 : newDur) + 40
-      setTimeout(() => {
+      const cleanupTimer = setTimeout(() => {
         el.classList.remove('change-anim')
         el.textContent = newText
-        // restore any inline display style and remove temporary min-width
+        // restore any inline display style
         if (prevDisplay) el.style.display = prevDisplay
         else el.style.removeProperty('display')
-        el.style.removeProperty('min-width')
+        // clear timers record
+        if (el._changeAnimTimers) {
+          el._changeAnimTimers.forEach(id => clearTimeout(id))
+          el._changeAnimTimers = null
+        }
       }, cleanupAfter)
+
+      // remember timers so future calls can cancel them
+      el._changeAnimTimers = [enterTimer, cleanupTimer]
     })
   }, delayMs)
+  // also store the start timer so it can be cancelled
+  if (!el._changeAnimTimers) el._changeAnimTimers = []
+  el._changeAnimTimers.push(startTimer)
 }
 
 
@@ -370,7 +377,7 @@ function updateSummaryStats(entriesArr) {
   const monthDelta = +(todayEntry.weight - refMonth.weight)
 
   // Now apply staggered animations from top-left -> bottom-right
-  const STAGGER_MS = 60;
+  const STAGGER_MS = 40;
   const staggerOrder = [
     { el: todayWeight, text: `${todayEntry.weight}kg` },
     { el: weightToGoal, text: `${Math.abs((todayEntry.weight - goal)).toFixed(1)}kg` },
