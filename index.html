@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="google" content="notranslate">
     <meta name="theme-color" content="transparent">
     <meta name="theme-color" content="#00000000" media="(prefers-color-scheme: dark)">
@@ -102,18 +102,16 @@
     <!-- the pop-up "add weight" bottom sheet -->
     <div class="overlay" id="overlay">
       <div class="bottom-sheet">
+
         <div class="bottom-sheet-top-content">
           <p class="title-large">Add a record</p>
           <input id="input-weight" placeholder="Weight" />
         </div>
-        <div class="action-bar">
 
+        <div class="action-bar">
           <input type="date" id="date-picker" style="display:none">
           <button id="date-btn" class="secondary-text-btn label-large">Today</button>
-
-          <div class="button-group">  
-            <button id="save-btn" class="filled-btn label-large">Save</button>
-          </div>
+          <button id="save-btn" class="filled-btn label-large">Save</button>
         </div>
       </div>
     </div>

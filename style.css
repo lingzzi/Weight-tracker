@@ -241,7 +241,7 @@ input:focus {
   left:0;
   right:0;
   bottom:0;
-  height: 40vh;
+  height: auto;
 }
 
 .overlay {
@@ -260,15 +260,9 @@ input:focus {
   display:flex;
   flex-direction: row;
   justify-content: space-between;
-  margin:12px 0px 0px 24px;
-}
-
-.button-group {
-  display:flex;
-  flex-direction: row;
-  justify-content: right;
-  gap: 8px;
-  margin:8px 24px 8px 8px;
+  margin:12px 24px 12px 24px;
+  height:72px;
+  align-items: center;
 }
 
 ::placeholder {
