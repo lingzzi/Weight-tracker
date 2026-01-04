@@ -1,21 +1,25 @@
     const ctx = document.getElementById('weight-chart').getContext('2d')
 
+    // Storage key for persisted entries
+    const STORAGE_KEY = 'weight-tracker-entries-v1'
 
+    // Defaults (MM/DD labels and values) — converted to ISO when used
+    const DEFAULT_LABELS = [
+      '07/01', '07/02', '07/03', '07/04', '07/05', '07/06', '07/07', '07/08'
+    ]
+    const DEFAULT_DATA = [65, 64.5, 64.2, 64.0, 63.5, 63.9, 63.7, 63.3]
+
+    // Create the chart with empty data; we'll populate from storage (or defaults)
     const myChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: [
-          '07/01', '07/02', '07/03', 
-          '07/04', '07/05', '07/06',
-          '07/07', '07/08'
-        ],
+        labels: [],
         datasets: [{
           label: 'Weight',
-          data: [65, 64.5, 64.2, 64.0, 63.5, 63.9, 63.7, 63.3],
+          data: [],
           borderColor: '#666',
           borderWidth:1,
           showLine:true,
-
           borderDash: [4, 4],
           backgroundColor: '#666',
           pointBackgroundColor: '#666',
@@ -48,6 +52,39 @@
         }
       }
     })
+
+    // Helpers to persist entries as [{iso: 'YYYY-MM-DD', weight: number}, ...]
+    function labelsToEntries(labels, data) {
+      const year = new Date().getFullYear();
+      return labels.map((lbl, i) => {
+        const [m, d] = lbl.split('/');
+        const mm = m.padStart(2, '0');
+        const dd = d.padStart(2, '0');
+        return { iso: `${year}-${mm}-${dd}`, weight: data[i] }
+      })
+    }
+
+    function loadEntries() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        if (raw) return JSON.parse(raw)
+      } catch (e) { console.warn('Failed to parse stored entries', e) }
+      return labelsToEntries(DEFAULT_LABELS, DEFAULT_DATA)
+    }
+
+    function saveEntries(entries) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)) } catch (e) { console.warn('Failed to save entries', e) }
+    }
+
+    function renderChartFromEntries(entries) {
+      myChart.data.labels = entries.map(e => formatSelectedDate(e.iso))
+      myChart.data.datasets[0].data = entries.map(e => e.weight)
+      myChart.update()
+    }
+
+    // Initialize
+    let entries = loadEntries()
+    renderChartFromEntries(entries)
 
 
     const dateBtn = document.getElementById("date-btn");
@@ -86,11 +123,11 @@
 
 
     function updateMyChart(value, isoDate) {
-      myChart.data.datasets[0].data.push(value);
-      // Use provided ISO date or today's date as ISO
       const dateISO = isoDate || new Date().toISOString().slice(0, 10);
-      myChart.data.labels.push(formatSelectedDate(dateISO));
-      myChart.update();
+      const entry = { iso: dateISO, weight: value };
+      entries.push(entry);
+      saveEntries(entries);
+      renderChartFromEntries(entries);
     }
 
     const inputWeight = document.getElementById("input-weight")
