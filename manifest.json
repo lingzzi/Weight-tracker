@@ -1,6 +1,6 @@
 {
     "name": "Weight Tracker",
-    "short_name": "WT",
+    "short_name": "Weight Tracker",
     "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
