@@ -230,7 +230,7 @@ input:focus {
 }
 
 .FAB:hover,
-.FAB:focus {
+.FAB:active {
   background-color:#4F4F4F;
 }
 
