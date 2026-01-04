@@ -219,19 +219,22 @@ input:focus {
   color:var(--inverse-on-surface);
   width:56px;
   height:56px;
-  border-radius: 100%;
+  border-radius: 50%;
   transition: background-color 0.2s ease;
   cursor: pointer;
   border: none;
   position:absolute;
   right:16px;
   bottom:24px;
-
+  -webkit-tap-highlight-color: transparent;
 }
 
 .FAB:hover,
-.FAB:active {
+.FAB:active,
+.FAB:focus {
   background-color:#4F4F4F;
+  border-radius: 50%;
+  outline:none;
 }
 
 .bottom-sheet {
