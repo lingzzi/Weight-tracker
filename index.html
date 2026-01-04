@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="google" content="notranslate">
-    <meta name="theme-color" content="transparent">
-    <meta name="theme-color" content="#00000000" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">  
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -35,8 +35,8 @@
     <!-- Menu & Greeting -->
 
     <div class="header">
-
-      <button class="icon-button">
+    <!-- Show menu later when there are options -->
+      <button class="icon-button" style="display: none;">
           <span class="material-symbols-outlined">menu</span>
       </button>
 
@@ -59,13 +59,13 @@
 
     <div class="card-vertical">
       <p class="title-small">Today's weight</p>
-      <p class="display-medium">60.9kg</p>
+      <p class="display-medium" id="today-weight">60.9kg</p>
     </div>
     
       
     <div class="card-vertical">
       <p class="title-small">To reach the goal</p>
-      <p class="display-medium">5.2kg</p>
+      <p class="display-medium" id="weight-to-goal">5.2kg</p>
     </div>
 
     </div>
@@ -82,17 +82,17 @@
 
       <div class="card-inside">
         <p class="title-small">Today</p>
-        <p class="label-large">0.3kg</p>
+        <p class="label-large" id="today-weight-change">0.3kg</p>
       </div>
 
       <div class="card-inside">
         <p class="title-small">This week</p>
-        <p class="label-large">0.4kg</p>
+        <p class="label-large" id="this-week-weight-change">0.4kg</p>
       </div>
 
       <div class="card-inside">
         <p class="title-small">This month</p>
-        <p class="label-large">0.7kg</p>
+        <p class="label-large" id="this-month-weight-change">0.7kg</p>
       </div>
 
     </div>
@@ -124,7 +124,6 @@
     </button>
 
     <script src="chart.js"></script>
-    <script src="index.js"></script>
 
 
   </div>

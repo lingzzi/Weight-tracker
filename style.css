@@ -67,6 +67,37 @@ html, body {
   letter-spacing: 0.2;
 }
 
+/* Animated numeric change for summary cards */
+.label-large.change-anim {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.label-large.change-anim .change-value {
+  display: inline-block;
+  transition: transform 320ms, opacity 320ms;
+  will-change: transform, opacity;
+}
+
+.label-large.change-anim .change-value.exit {
+  transform: translateY(-30%);
+  opacity: 0;
+  transition-timing-function: ease-in;
+}
+
+.label-large.change-anim .change-value.enter {
+  transform: translateY(0%);
+  opacity: 1;
+  transition-timing-function: ease-out;
+}
+
+.label-large.change-anim .change-value.new {
+  transform: translateY(30%);
+  opacity: 0;
+}
+
 /* Reset */
 * {
   box-sizing: border-box;
@@ -271,7 +302,7 @@ input:focus {
   flex-direction: row;
   justify-content: space-between;
   margin:12px 24px 12px 24px;
-  height:72px;
+  height:64px;
   align-items: center;
 }
 
