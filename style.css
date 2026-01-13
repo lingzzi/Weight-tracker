@@ -58,6 +58,15 @@ html, body {
   font-style: normal;
 }
 
+.body-large {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+  font-style: normal;
+}
+
 .label-large {
   font-family: var(--font-label);
   font-weight: 500;
@@ -170,15 +179,29 @@ input:focus {
 .header {
   margin: 12px;
   display:flex;
-  justify-content: start;
+  justify-content: space-between;
   column-gap: 12px;
   align-items: center;
 }
 
+#header-greeting {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  column-gap: 8px;
+}
 /* Components - btn */
-.filled-btn {
+.filled-primary-btn {
   background-color:var(--primary);
   color:var(--on-primary);
+  padding:12px 24px 12px 24px;
+  border-radius:100px;
+  border:none;
+}
+
+.filled-secondary-btn {
+  background-color:var(--inverse-surface);
+  color:var(--inverse-on-surface);
   padding:12px 24px 12px 24px;
   border-radius:100px;
   border:none;
@@ -195,7 +218,7 @@ input:focus {
 .secondary-text-btn {
   background: none;
   color:var(--on-surface-variant);
-  padding:8px;
+  padding: 12px 24px 12px 24px;
   border-radius:100px;
   border:none;
 }
@@ -357,4 +380,47 @@ input:focus {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Dialog / modal styles */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+  z-index: 60;
+}
+.dialog-backdrop[hidden] {
+  display: none;
+}
+.dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  width: min(92%, 420px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  row-gap: 16px;
+}
+.dialog-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: 16px;
+}
+.dialog-icon {
+  font-size: 24px;
+  color: var(--on-surface-variant);
+}
+.dialog-content p {
+  margin: 0;
+  color: var(--on-surface-variant);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  column-gap: 8px;
 }

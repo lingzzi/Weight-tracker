@@ -332,7 +332,25 @@ function formatDelta(delta) {
 }
 
 function updateSummaryStats(entriesArr) {
-  if (!entriesArr || entriesArr.length === 0) return
+  if (!entriesArr || entriesArr.length === 0) {
+    // No entries: animate summary fields to a zero/empty state so cleared
+    // state persists visually after page reloads.
+    const STAGGER_MS = 40;
+    const zeroText = '0.0kg'
+    const staggerOrder = [
+      { el: todayWeight, text: zeroText },
+      { el: weightToGoal, text: zeroText },
+      { el: document.getElementById('total-weight-change'), text: zeroText },
+      { el: todayWeightChange, text: zeroText },
+      { el: thisWeekWeightChange, text: zeroText },
+      { el: thisMonthWeightChange, text: zeroText }
+    ]
+    staggerOrder.forEach((item, idx) => {
+      if (!item.el) return
+      animateTextChange(item.el, item.text, idx * STAGGER_MS)
+    })
+    return
+  }
   // ensure sorted
   entriesArr.sort((a,b) => a.iso.localeCompare(b.iso))
   const first = entriesArr[0]
@@ -392,3 +410,30 @@ function updateSummaryStats(entriesArr) {
     animateTextChange(item.el, item.text, idx * STAGGER_MS)
   })
 }
+
+// Clear all stored entries and reset chart + animated summary to empty state
+function clearAllEntries() {
+  entries = []
+  saveEntries(entries)
+  renderChartFromEntries(entries)
+
+  // Animate summary values to an empty/zero state using same stagger
+  const STAGGER_MS = 40;
+  const zeroText = '0.0kg'
+  const staggerOrder = [
+    { el: todayWeight, text: zeroText },
+    { el: weightToGoal, text: zeroText },
+    { el: document.getElementById('total-weight-change'), text: zeroText },
+    { el: todayWeightChange, text: zeroText },
+    { el: thisWeekWeightChange, text: zeroText },
+    { el: thisMonthWeightChange, text: zeroText }
+  ]
+
+  staggerOrder.forEach((item, idx) => {
+    if (!item.el) return
+    animateTextChange(item.el, item.text, idx * STAGGER_MS)
+  })
+}
+
+// Expose to global so UI-level handlers can call it
+window.clearAllEntries = clearAllEntries
