@@ -3,7 +3,7 @@
     "short_name": "Weight Tracker",
     "start_url": "index.html",
     "display": "standalone",
-    "background_color": "#00000000",
+    "background_color": "#FFFFFF",
     "theme_color": "#00000000",
     "icons": [
         {
