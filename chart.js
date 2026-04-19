@@ -5,6 +5,10 @@ const weightToGoal = document.getElementById("weight-to-goal");
 const todayWeightChange = document.getElementById("today-weight-change");
 const thisWeekWeightChange = document.getElementById("this-week-weight-change");
 const thisMonthWeightChange = document.getElementById("this-month-weight-change");
+const bottomSheetTitle = document.getElementById("bottom-sheet-title");
+const editDeleteContainer = document.getElementById("edit-delete-container");
+const editBtn = document.getElementById("edit-btn");
+const deleteBtn = document.getElementById("delete-btn");
 
 
 // Initialize bottom-sheet handlers early so UI still works even if chart setup fails
@@ -14,19 +18,69 @@ const thisMonthWeightChange = document.getElementById("this-month-weight-change"
     const overlayEl = document.getElementById('overlay')
     if (!openBtn || !overlayEl) return
     openBtn.addEventListener('click', () => {
+      // Add mode
+      selectedEntryIndex = -1;
+      bottomSheetTitle.textContent = 'Add a record';
+      inputWeight.value = '';
+      datePicker.value = toLocalISO(new Date());
+      dateBtn.textContent = 'Today';
       overlayEl.style.display = 'flex'
       openBtn.style.display = 'none'
     })
     overlayEl.addEventListener('click', (event) => {
       if (event.target === overlayEl) {
         overlayEl.style.display = 'none'
-        openBtn.style.display = 'block'
+        if (selectedEntryIndex === -1) {
+          openBtn.style.display = 'block'
+        } else {
+          editDeleteContainer.style.display = 'flex';
+          editDeleteContainer.classList.add('show');
+        }
       }
     })
   } catch (e) {
     console.warn('Bottom sheet init failed', e)
   }
 })()
+
+// Edit and Delete button handlers
+editBtn.addEventListener('click', (event) => {
+  event.stopPropagation();
+  if (selectedEntryIndex >= 0 && selectedEntryIndex < entries.length) {
+    const entry = entries[selectedEntryIndex];
+    bottomSheetTitle.textContent = 'Edit a record';
+    inputWeight.value = entry.weight;
+    datePicker.value = entry.iso;
+    dateBtn.textContent = formatSelectedDate(entry.iso);
+    const overlayEl = document.getElementById('overlay');
+    overlayEl.style.display = 'flex';
+    editDeleteContainer.style.display = 'none';
+    editDeleteContainer.classList.remove('show');
+  }
+});
+
+deleteBtn.addEventListener('click', (event) => {
+  event.stopPropagation();
+  if (selectedEntryIndex >= 0 && selectedEntryIndex < entries.length) {
+    entries.splice(selectedEntryIndex, 1);
+    saveEntries(entries);
+    renderChartFromEntries(entries);
+    updateSummaryStats(entries);
+    deselectEntry();
+  }
+});
+
+// Dismiss by clicking anywhere
+document.addEventListener('click', (event) => {
+  if (selectedEntryIndex !== -1) {
+    deselectEntry();
+  }
+});
+
+// Prevent dismissing when clicking on the edit/delete container
+editDeleteContainer.addEventListener('click', (event) => {
+  event.stopPropagation();
+});
 
 const ctx = document.getElementById('weight-chart').getContext('2d')
 
@@ -76,6 +130,12 @@ const myChart = new Chart(ctx, {
         grid: {display:false},
         suggestedMin: 55,
         suggestedMax: 66
+      }
+    },
+    onClick: (event, elements) => {
+      if (selectedEntryIndex === -1 && elements.length > 0) {
+        const dataIndex = elements[0].index;
+        selectEntry(dataIndex);
       }
     }
   }
@@ -133,6 +193,42 @@ function sortEntries() {
 sortEntries()
 renderChartFromEntries(entries)
 updateSummaryStats(entries)
+
+// Track selected entry for editing/deleting
+let selectedEntryIndex = -1;
+
+function selectEntry(index) {
+  selectedEntryIndex = index;
+  const openBtn = document.getElementById('open-bottom-sheet');
+  // Animate: scale down the add button, show edit/delete
+  openBtn.classList.add('scale-down');
+  setTimeout(() => {
+    editDeleteContainer.style.display = 'flex';
+    setTimeout(() => {
+      editDeleteContainer.classList.add('show');
+    }, 10);
+    setTimeout(() => {
+      openBtn.style.display = 'none';
+    }, 150);
+  }, 150);
+}
+
+function deselectEntry() {
+  if (selectedEntryIndex === -1) return;
+  selectedEntryIndex = -1;
+  const openBtn = document.getElementById('open-bottom-sheet');
+  // Animate: scale down edit/delete, show add button
+  editDeleteContainer.classList.remove('show');
+  setTimeout(() => {
+    openBtn.style.display = 'block';
+    setTimeout(() => {
+      openBtn.classList.remove('scale-down');
+    }, 10);
+    setTimeout(() => {
+      editDeleteContainer.style.display = 'none';
+    }, 150);
+  }, 150);
+}
 
 
 const dateBtn = document.getElementById("date-btn");
@@ -297,11 +393,35 @@ saveBtn.addEventListener('click', function(){
   }
   // pass the selected date (ISO) so the chart label matches the picker
   const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
-  updateMyChart(newWeight, selectedISO);
+  
+  if (selectedEntryIndex >= 0) {
+    // Edit mode: update the selected entry
+    const oldISO = entries[selectedEntryIndex].iso;
+    entries[selectedEntryIndex].weight = newWeight;
+    entries[selectedEntryIndex].iso = selectedISO;
+    sortEntries();
+    saveEntries(entries);
+    renderChartFromEntries(entries);
+    updateSummaryStats(entries);
+    // Find the new index after sorting
+    selectedEntryIndex = entries.findIndex(e => e.iso === selectedISO && e.weight === newWeight);
+    if (selectedEntryIndex === -1) {
+      // If not found (shouldn't happen), deselect
+      deselectEntry();
+    }
+  } else {
+    // Add mode: use existing logic
+    updateMyChart(newWeight, selectedISO);
+  }
+  
   inputWeight.value='';
 
-  if (newWeight) {
-    // summary will be updated by updateSummaryStats called from updateMyChart
+  // Close the bottom sheet
+  const overlayEl = document.getElementById('overlay');
+  overlayEl.style.display = 'none';
+  const openBtn = document.getElementById('open-bottom-sheet');
+  if (selectedEntryIndex === -1) {
+    openBtn.style.display = 'block';
   }
 })
 

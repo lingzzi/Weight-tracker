@@ -9,6 +9,8 @@
   --primary:hsl(243,75%,59%);
   --on-primary:hsl(0,0%,98%);
   --on-surface-variant:hsl(0,0%,25%);
+  --error:#DB383B;
+  --on-error:white;
 
   /* Font style */
   --font-display:"Fjalla One", sans-serif;
@@ -316,7 +318,7 @@ input:focus {
   width:56px;
   height:56px;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   border: none;
   position:absolute;
@@ -337,6 +339,44 @@ input:focus {
   background-color:#4F4F4F;
   border-radius: 50%;
   outline: none !important;
+}
+
+.edit-delete-container {
+  position: absolute;
+  right: 16px;
+  bottom: 24px;
+  display: flex;
+  gap: 8px;
+}
+
+.edit-delete-container .FAB {
+  position: static;
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.edit-delete-container.show .FAB {
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.FAB.scale-down {
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.delete-btn {
+  background-color: var(--error); /* Red color for delete */
+  color: var(--on-error);
+}
+
+.delete-btn:hover,
+.delete-btn:active,
+.delete-btn:focus {
+  background-color: #c82333; /* Darker red on hover */
 }
 
 .bottom-sheet {

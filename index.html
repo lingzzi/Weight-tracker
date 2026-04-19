@@ -152,7 +152,7 @@
           <div class="bottom-sheet">
       
             <div class="bottom-sheet-top-content">
-              <p class="title-large">Add a record</p>
+              <p class="title-large" id="bottom-sheet-title">Add a record</p>
               <input id="input-weight" type="number" placeholder="Weight" />
             </div>
       
@@ -170,6 +170,16 @@
         <button class="FAB" id="open-bottom-sheet">
           <span class="material-symbols-outlined">add</span>
         </button>
+        
+        <!-- Edit and Delete buttons (initially hidden) -->
+        <div class="edit-delete-container" id="edit-delete-container" style="display: none;">
+          <button class="FAB delete-btn" id="delete-btn">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+          <button class="FAB edit-btn" id="edit-btn">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+        </div>
   </div>
   
   <script>
