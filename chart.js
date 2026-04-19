@@ -9,6 +9,133 @@ const bottomSheetTitle = document.getElementById("bottom-sheet-title");
 const editDeleteContainer = document.getElementById("edit-delete-container");
 const editBtn = document.getElementById("edit-btn");
 const deleteBtn = document.getElementById("delete-btn");
+const weatherIconEl = document.getElementById('weather-icon');
+
+const WEATHER_CODE_EMOJI = {
+  0: '☀️',
+  1: '🌤️',
+  2: '⛅',
+  3: '☁️',
+  45: '🌫️',
+  48: '🌫️',
+  51: '🌦️',
+  53: '🌦️',
+  55: '🌧️',
+  56: '🌧️',
+  57: '🌧️',
+  61: '🌧️',
+  63: '🌧️',
+  65: '🌧️',
+  66: '🌧️',
+  67: '🌧️',
+  71: '🌨️',
+  73: '🌨️',
+  75: '🌨️',
+  77: '🌨️',
+  80: '🌧️',
+  81: '🌧️',
+  82: '⛈️',
+  85: '❄️',
+  86: '❄️',
+  95: '⛈️',
+  96: '⛈️',
+  99: '⛈️'
+};
+
+const WEATHER_CODE_LABEL = {
+  0: 'Clear',
+  1: 'Sunny',
+  2: 'Mostly sunny',
+  3: 'Cloudy',
+  45: 'Fog',
+  48: 'Fog',
+  51: 'Drizzle',
+  53: 'Light rain',
+  55: 'Rain',
+  56: 'Freezing drizzle',
+  57: 'Freezing rain',
+  61: 'Rain',
+  63: 'Rain',
+  65: 'Heavy rain',
+  66: 'Freezing rain',
+  67: 'Freezing rain',
+  71: 'Snow',
+  73: 'Snow',
+  75: 'Snow',
+  77: 'Snow',
+  80: 'Rain showers',
+  81: 'Rain showers',
+  82: 'Thunderstorm',
+  85: 'Snow showers',
+  86: 'Snow showers',
+  95: 'Thunderstorm',
+  96: 'Thunderstorm',
+  99: 'Thunderstorm'
+};
+
+function mapWeatherCodeToEmoji(code) {
+  return WEATHER_CODE_EMOJI[code] || '🌈';
+}
+
+function mapWeatherCodeToLabel(code) {
+  return WEATHER_CODE_LABEL[code] || 'Weather';
+}
+
+async function getLocationFromIp() {
+  const response = await fetch('https://ipapi.co/json/');
+  if (!response.ok) throw new Error('IP location lookup failed');
+  const data = await response.json();
+  return { lat: Number(data.latitude), lon: Number(data.longitude) };
+}
+
+function getGeolocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      getLocationFromIp().then(resolve).catch(reject);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        });
+      },
+      async () => {
+        try {
+          const location = await getLocationFromIp();
+          resolve(location);
+        } catch (error) {
+          reject(error);
+        }
+      },
+      { timeout: 10000 }
+    );
+  });
+}
+
+async function fetchWeather(lat, lon) {
+  const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
+  if (!response.ok) throw new Error('Weather API request failed');
+  return response.json();
+}
+
+async function initWeather() {
+  if (!weatherIconEl) return;
+
+  try {
+    const { lat, lon } = await getGeolocation();
+    const weatherData = await fetchWeather(lat, lon);
+    const current = weatherData.current_weather;
+    const code = current?.weathercode;
+
+    weatherIconEl.textContent = mapWeatherCodeToEmoji(code);
+  } catch (error) {
+    weatherIconEl.textContent = '☁️';
+    console.warn('Weather init failed', error);
+  }
+}
 
 
 // Initialize bottom-sheet handlers early so UI still works even if chart setup fails
@@ -556,4 +683,5 @@ function clearAllEntries() {
 }
 
 // Expose to global so UI-level handlers can call it
-window.clearAllEntries = clearAllEntries
+window.clearAllEntries = clearAllEntries;
+initWeather();

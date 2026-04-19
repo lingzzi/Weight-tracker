@@ -46,6 +46,11 @@ html, body {
   letter-spacing: 0.5px;
 }
 
+.weather-icon {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
 .title-large {
   font-family: var(--font-title);
   font-size: 20px;
@@ -189,16 +194,28 @@ input:focus {
 .header {
   margin: 12px;
   display:flex;
-  justify-content: space-between;
-  column-gap: 12px;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
 }
 
 #header-greeting {
   display: flex;
-  flex-direction: row;
   align-items: center;
   column-gap: 8px;
+}
+
+.header-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 12px;
+  box-sizing: border-box;
+}
+
+.header-cards .card-vertical {
+  flex: 1 1 0;
+  min-width: 0;
 }
 /* Components - btn */
 .filled-primary-btn {
