@@ -232,7 +232,11 @@ const myChart = new Chart(ctx, {
       borderDash: [4, 4],
       backgroundColor: '#666',
       pointBackgroundColor: '#666',
-      tension: 0.1
+      tension: 0.1,
+      pointRadius: 6,
+      pointHoverRadius: 8,
+      pointHitRadius: 24,
+      hoverRadius: 24
     }]
   },
   options: {
@@ -244,6 +248,10 @@ const myChart = new Chart(ctx, {
           label: context => `${context.parsed.y}kg`
         }
       }
+    },
+    interaction: {
+      mode: 'nearest',
+      intersect: true
     },
     scales: {
       x: {
@@ -336,8 +344,8 @@ function selectEntry(index) {
     }, 10);
     setTimeout(() => {
       openBtn.style.display = 'none';
-    }, 150);
-  }, 150);
+    }, 250);
+  }, 100);
 }
 
 function deselectEntry() {
@@ -351,10 +359,10 @@ function deselectEntry() {
     setTimeout(() => {
       openBtn.classList.remove('scale-down');
     }, 10);
-    setTimeout(() => {
-      editDeleteContainer.style.display = 'none';
-    }, 150);
-  }, 150);
+  }, 100);
+  setTimeout(() => {
+    editDeleteContainer.style.display = 'none';
+  }, 300);
 }
 
 
