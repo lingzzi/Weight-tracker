@@ -145,8 +145,8 @@ async function initWeather() {
     const overlayEl = document.getElementById('overlay')
     if (!openBtn || !overlayEl) return
     openBtn.addEventListener('click', () => {
-      // Add mode
-      selectedEntryIndex = -1;
+      // Add mode - clear selection state
+      activeDot = null;
       bottomSheetTitle.textContent = 'Add a record';
       inputWeight.value = '';
       datePicker.value = toLocalISO(new Date());
@@ -157,12 +157,10 @@ async function initWeather() {
     overlayEl.addEventListener('click', (event) => {
       if (event.target === overlayEl) {
         overlayEl.style.display = 'none'
-        if (selectedEntryIndex === -1) {
+        if (activeDot === null) {
           openBtn.style.display = 'block'
-        } else {
-          editDeleteContainer.style.display = 'flex';
-          editDeleteContainer.classList.add('show');
         }
+        // Don't re-show edit/delete buttons - they're already visible if entry is selected
       }
     })
   } catch (e) {
@@ -173,8 +171,8 @@ async function initWeather() {
 // Edit and Delete button handlers
 editBtn.addEventListener('click', (event) => {
   event.stopPropagation();
-  if (selectedEntryIndex >= 0 && selectedEntryIndex < entries.length) {
-    const entry = entries[selectedEntryIndex];
+  if (activeDot >= 0 && activeDot < entries.length) {
+    const entry = entries[activeDot];
     bottomSheetTitle.textContent = 'Edit a record';
     inputWeight.value = entry.weight;
     datePicker.value = entry.iso;
@@ -188,8 +186,8 @@ editBtn.addEventListener('click', (event) => {
 
 deleteBtn.addEventListener('click', (event) => {
   event.stopPropagation();
-  if (selectedEntryIndex >= 0 && selectedEntryIndex < entries.length) {
-    entries.splice(selectedEntryIndex, 1);
+  if (activeDot >= 0 && activeDot < entries.length) {
+    entries.splice(activeDot, 1);
     saveEntries(entries);
     renderChartFromEntries(entries);
     updateSummaryStats(entries);
@@ -197,16 +195,21 @@ deleteBtn.addEventListener('click', (event) => {
   }
 });
 
-// Dismiss by clicking anywhere
+// CASE B: Tap Outside Touch Area
+// Dismiss buttons when clicking outside any dot
 document.addEventListener('click', (event) => {
-  if (selectedEntryIndex !== -1) {
-    deselectEntry();
+  // Don't dismiss if we're clicking on a chart data point
+  if (isClickingChart) {
+    return;
   }
-});
-
-// Prevent dismissing when clicking on the edit/delete container
-editDeleteContainer.addEventListener('click', (event) => {
-  event.stopPropagation();
+  
+  // Don't dismiss if clicking on edit/delete buttons
+  if (editDeleteContainer && editDeleteContainer.contains(event.target)) {
+    return;
+  }
+  
+  // Handle outside tap (state machine)
+  handleOutsideTap();
 });
 
 const ctx = document.getElementById('weight-chart').getContext('2d')
@@ -233,8 +236,8 @@ const myChart = new Chart(ctx, {
       backgroundColor: '#666',
       pointBackgroundColor: '#666',
       tension: 0.1,
-      pointRadius: 6,
-      pointHoverRadius: 8,
+      pointRadius: 3,
+      pointHoverRadius: 4,
       pointHitRadius: 24,
       hoverRadius: 24
     }]
@@ -268,10 +271,18 @@ const myChart = new Chart(ctx, {
       }
     },
     onClick: (event, elements) => {
-      if (selectedEntryIndex === -1 && elements.length > 0) {
+      // Mark that we're clicking on chart data (prevents document listener from dismissing)
+      isClickingChart = true;
+      
+      if (elements.length > 0) {
         const dataIndex = elements[0].index;
-        selectEntry(dataIndex);
+        handleDotTap(dataIndex); // Use state machine
       }
+      
+      // Reset flag after handler completes
+      setTimeout(() => {
+        isClickingChart = false;
+      }, 0);
     }
   }
 })
@@ -329,40 +340,184 @@ sortEntries()
 renderChartFromEntries(entries)
 updateSummaryStats(entries)
 
-// Track selected entry for editing/deleting
-let selectedEntryIndex = -1;
+/**
+ * STATE MACHINE: Interactive Dot Selection
+ * 
+ * States:
+ * - activeDot = null (no dot selected, "Add" button visible)
+ * - activeDot = index (dot selected, "Edit/Delete" buttons visible)
+ */
+let activeDot = null; // null | index
+let lastStateChangeTime = 0; // Timestamp of last state transition
+let isAnimating = false; // Prevent overlapping animations
+let isClickingChart = false; // Flag for chart click detection
+let pendingAnimationTimers = []; // Track animation timers for cancellation
+const DISMISS_DELAY_MS = 50; // Reduced from 300ms for snappier interaction (<100ms)
 
-function selectEntry(index) {
-  selectedEntryIndex = index;
+/**
+ * Cancel any pending animation timers
+ * Allows new taps to immediately interrupt previous animations
+ */
+function cancelPendingAnimations() {
+  pendingAnimationTimers.forEach(timerId => clearTimeout(timerId));
+  pendingAnimationTimers = [];
+  isAnimating = false;
+}
+
+/**
+ * Helper to schedule and track animation timers
+ * Allows cancellation of animations mid-flight
+ */
+function scheduleAnimationStep(callback, delay) {
+  const timerId = setTimeout(callback, delay);
+  pendingAnimationTimers.push(timerId);
+  return timerId;
+}
+
+/**
+ * CASE A: Tap on a Dot
+ * Input: dataIndex from chart click
+ * State transitions:
+ *   - activeDot === dataIndex: IDEMPOTENT - do nothing
+ *   - activeDot === null: TRANSITION_SHOW - add→edit/delete animation
+ *   - activeDot !== dataIndex: TRANSITION_SWITCH - scale down/up animation
+ */
+function handleDotTap(dataIndex) {
+  // IDEMPOTENT CHECK: Same dot tapped again
+  if (activeDot === dataIndex) {
+    return; // Exit immediately, no action
+  }
+  
+  // If switching during animation, cancel previous animation immediately
+  if (isAnimating) {
+    cancelPendingAnimations();
+  }
+  
+  // TRANSITION: Activating first dot (null → dataIndex)
+  if (activeDot === null) {
+    activeDot = dataIndex; // State reset happens immediately
+    lastStateChangeTime = Date.now();
+    animateShowButtons();
+    return;
+  }
+  
+  // TRANSITION: Switching to different dot (oldIndex → newIndex)
+  if (activeDot !== null && activeDot !== dataIndex) {
+    activeDot = dataIndex; // State reset happens immediately
+    lastStateChangeTime = Date.now();
+    animateSwitchButtons();
+    return;
+  }
+}
+
+/**
+ * CASE B: Tap Outside Touch Area
+ * Input: click event outside any dot
+ * State transitions:
+ *   - activeDot !== null: TRANSITION_HIDE - edit/delete→add animation
+ *   - activeDot === null: do nothing
+ */
+function handleOutsideTap() {
+  if (activeDot === null) {
+    return; // Already in idle state, nothing to do
+  }
+  
+  // Only allow dismiss if enough time has passed (reduce to 50ms for snappier feel)
+  const timeSinceStateChange = Date.now() - lastStateChangeTime;
+  if (timeSinceStateChange >= DISMISS_DELAY_MS) {
+    activeDot = null; // State reset happens immediately
+    lastStateChangeTime = Date.now();
+    animateHideButtons();
+  }
+}
+
+/**
+ * Animation 1: Show Buttons (Add → Edit/Delete)
+ * Triggered when: activeDot transitions from null to an index
+ * Duration: ~200ms (snappy)
+ */
+function animateShowButtons() {
+  if (isAnimating) return;
+  isAnimating = true;
+  
   const openBtn = document.getElementById('open-bottom-sheet');
-  // Animate: scale down the add button, show edit/delete
   openBtn.classList.add('scale-down');
-  setTimeout(() => {
+  
+  scheduleAnimationStep(() => {
     editDeleteContainer.style.display = 'flex';
-    setTimeout(() => {
+    scheduleAnimationStep(() => {
       editDeleteContainer.classList.add('show');
-    }, 10);
-    setTimeout(() => {
+    }, 5); // Reduced from 10ms
+    scheduleAnimationStep(() => {
       openBtn.style.display = 'none';
-    }, 250);
-  }, 100);
+      isAnimating = false;
+      pendingAnimationTimers = [];
+    }, 200); // Reduced from 250ms for faster response
+  }, 60); // Reduced from 100ms
+}
+
+/**
+ * Animation 2: Hide Buttons (Edit/Delete → Add)
+ * Triggered when: activeDot transitions from an index to null
+ * Duration: ~200ms (snappy)
+ */
+function animateHideButtons() {
+  if (isAnimating) return;
+  isAnimating = true;
+  
+  const openBtn = document.getElementById('open-bottom-sheet');
+  editDeleteContainer.classList.remove('show');
+  
+  scheduleAnimationStep(() => {
+    openBtn.style.display = 'block';
+    scheduleAnimationStep(() => {
+      openBtn.classList.remove('scale-down');
+    }, 5); // Reduced from 10ms
+  }, 60); // Reduced from 100ms
+  
+  scheduleAnimationStep(() => {
+    editDeleteContainer.style.display = 'none';
+    isAnimating = false;
+    pendingAnimationTimers = [];
+  }, 220); // Reduced from 300ms
+}
+
+/**
+ * Animation 3: Switch Buttons (Index A → Index B)
+ * Triggered when: activeDot transitions from one index to another
+ * Behavior: Scale down/up animation (snappy scale)
+ * Duration: ~160ms (fastest, allows immediate next tap)
+ */
+function animateSwitchButtons() {
+  if (isAnimating) return;
+  isAnimating = true;
+  
+  editDeleteContainer.classList.remove('show');
+  
+  scheduleAnimationStep(() => {
+    editDeleteContainer.classList.add('show');
+    scheduleAnimationStep(() => {
+      isAnimating = false;
+      pendingAnimationTimers = [];
+    }, 160); // Reduced from 250ms
+  }, 5); // Reduced from 10ms
+}
+
+/**
+ * Legacy selector mapping for edit/delete functions
+ * (Used by edit and delete button handlers)
+ */
+function getSelectedEntryIndex() {
+  return activeDot;
+}
+
+function setSelectedEntryIndex(index) {
+  activeDot = index;
 }
 
 function deselectEntry() {
-  if (selectedEntryIndex === -1) return;
-  selectedEntryIndex = -1;
-  const openBtn = document.getElementById('open-bottom-sheet');
-  // Animate: scale down edit/delete, show add button
-  editDeleteContainer.classList.remove('show');
-  setTimeout(() => {
-    openBtn.style.display = 'block';
-    setTimeout(() => {
-      openBtn.classList.remove('scale-down');
-    }, 10);
-  }, 100);
-  setTimeout(() => {
-    editDeleteContainer.style.display = 'none';
-  }, 300);
+  if (activeDot === null) return;
+  handleOutsideTap(); // Use the state machine instead
 }
 
 
@@ -529,20 +684,22 @@ saveBtn.addEventListener('click', function(){
   // pass the selected date (ISO) so the chart label matches the picker
   const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
   
-  if (selectedEntryIndex >= 0) {
+  if (activeDot >= 0) {
     // Edit mode: update the selected entry
-    const oldISO = entries[selectedEntryIndex].iso;
-    entries[selectedEntryIndex].weight = newWeight;
-    entries[selectedEntryIndex].iso = selectedISO;
+    const oldISO = entries[activeDot].iso;
+    entries[activeDot].weight = newWeight;
+    entries[activeDot].iso = selectedISO;
     sortEntries();
     saveEntries(entries);
     renderChartFromEntries(entries);
     updateSummaryStats(entries);
     // Find the new index after sorting
-    selectedEntryIndex = entries.findIndex(e => e.iso === selectedISO && e.weight === newWeight);
-    if (selectedEntryIndex === -1) {
+    const newIndex = entries.findIndex(e => e.iso === selectedISO && e.weight === newWeight);
+    if (newIndex >= 0) {
+      activeDot = newIndex;
+    } else {
       // If not found (shouldn't happen), deselect
-      deselectEntry();
+      activeDot = null;
     }
   } else {
     // Add mode: use existing logic
@@ -555,7 +712,7 @@ saveBtn.addEventListener('click', function(){
   const overlayEl = document.getElementById('overlay');
   overlayEl.style.display = 'none';
   const openBtn = document.getElementById('open-bottom-sheet');
-  if (selectedEntryIndex === -1) {
+  if (activeDot === null) {
     openBtn.style.display = 'block';
   }
 })
