@@ -684,7 +684,7 @@ saveBtn.addEventListener('click', function(){
   // pass the selected date (ISO) so the chart label matches the picker
   const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
   
-  if (activeDot >= 0) {
+  if (activeDot !== null && activeDot >= 0) {
     // Edit mode: update the selected entry
     const oldISO = entries[activeDot].iso;
     entries[activeDot].weight = newWeight;

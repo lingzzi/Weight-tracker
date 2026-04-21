@@ -224,6 +224,13 @@ input:focus {
   padding:12px 24px 12px 24px;
   border-radius:100px;
   border:none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .filled-secondary-btn {
@@ -248,6 +255,13 @@ input:focus {
   padding: 12px 24px 12px 24px;
   border-radius:100px;
   border:none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 /* Card on home page */
@@ -407,6 +421,7 @@ input:focus {
   right:0;
   bottom:0;
   height: auto;
+  z-index: 10;
 }
 
 .overlay {
@@ -419,6 +434,7 @@ input:focus {
   display: none; /* hidden by default */
   align-items: center;
   justify-content: center;
+  z-index: 5;
 }
 
 .action-bar {
