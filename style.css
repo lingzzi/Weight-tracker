@@ -4,6 +4,8 @@
   --on-surface:hsl(216, 8%, 12%);
   --surface-container:hsl(220, 14%, 96%);
   --on-surface-container:hsl(215, 28%, 17%);
+  --surface-container-high:hsl(220, 12%, 88%);
+  --on-surface-container-high:hsl(220, 12%, 88%);
   --inverse-surface:hsl(0, 0%, 25%);
   --inverse-on-surface:hsl(220, 14%, 96%);
   --primary:hsl(243,75%,59%);
@@ -286,6 +288,77 @@ input:focus {
   row-gap: 4px;
 }
 
+.goal-weight-card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+}
+
+.goal-weight-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0;
+  flex: 1;
+  padding: 12px;
+}
+
+.goal-weight-text {
+  display: flex;
+  flex-direction: column;
+  row-gap: 4px;
+  flex: 1;
+}
+
+.goal-weight-edit-btn {
+  background-color: var(--on-surface-container-high);
+  width: 32px;
+  height: auto;
+  min-height: 100%;
+  border-radius: 100px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  margin: 12px 12px 12px auto;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.goal-weight-edit-btn:hover {
+  background-color: hsl(220, 12%, 80%);
+}
+
+.goal-weight-edit-btn:focus {
+  background-color: hsl(220, 12%, 80%);
+  outline: none;
+}
+
+.goal-weight-edit-btn:active {
+  background-color: hsl(220, 12%, 75%);
+}
+
+.goal-weight-edit-btn span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+
 .card-horizontal {
   background-color: var(--surface-container);
   height:fit-content;
@@ -446,6 +519,11 @@ input:focus {
   margin:12px 24px 12px 24px;
   height:64px;
   align-items: center;
+  gap: 12px;
+}
+
+.action-bar.goal-mode {
+  justify-content: flex-end;
 }
 
 ::placeholder {

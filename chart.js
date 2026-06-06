@@ -1,7 +1,6 @@
 const inputWeight = document.getElementById("input-weight")
 const saveBtn = document.getElementById("save-btn")
 const todayWeight = document.getElementById("today-weight");
-const weightToGoal = document.getElementById("weight-to-goal");
 const todayWeightChange = document.getElementById("today-weight-change");
 const thisWeekWeightChange = document.getElementById("this-week-weight-change");
 const thisMonthWeightChange = document.getElementById("this-month-weight-change");
@@ -142,21 +141,48 @@ async function initWeather() {
 (function initBottomSheetHandlers(){
   try {
     const openBtn = document.getElementById('open-bottom-sheet')
+    const goalEditBtn = document.getElementById('goal-weight-edit-btn')
     const overlayEl = document.getElementById('overlay')
+    const actionBar = document.querySelector('.action-bar')
     if (!openBtn || !overlayEl) return
+    
     openBtn.addEventListener('click', () => {
       // Add mode - clear selection state
       activeDot = null;
+      bottomSheetMode = 'add'
       bottomSheetTitle.textContent = 'Add a record';
       inputWeight.value = '';
       datePicker.value = toLocalISO(new Date());
       dateBtn.textContent = 'Today';
+      if (actionBar) actionBar.classList.remove('goal-mode')
+      if (datePicker) datePicker.style.display = 'none';
+      if (dateBtn) dateBtn.style.display = 'block';
       overlayEl.style.display = 'flex'
       openBtn.style.display = 'none'
     })
+    
+    // Goal weight edit button handler
+    if (goalEditBtn) {
+      goalEditBtn.addEventListener('click', () => {
+        bottomSheetMode = 'edit-goal'
+        bottomSheetTitle.textContent = 'Edit goal weight';
+        inputWeight.value = goal.toString();
+        if (datePicker) datePicker.style.display = 'none'; // Hide date picker for goal weight
+        if (dateBtn) dateBtn.style.display = 'none';
+        if (actionBar) actionBar.classList.add('goal-mode')
+        overlayEl.style.display = 'flex'
+        // Focus the input for better UX
+        setTimeout(() => inputWeight.focus(), 100)
+      })
+    }
+    
     overlayEl.addEventListener('click', (event) => {
       if (event.target === overlayEl) {
         overlayEl.style.display = 'none'
+        // Reset date picker visibility
+        if (datePicker) datePicker.style.display = 'none';
+        if (dateBtn) dateBtn.style.display = 'block';
+        if (actionBar) actionBar.classList.remove('goal-mode')
         if (activeDot === null) {
           openBtn.style.display = 'block'
         }
@@ -212,14 +238,82 @@ document.addEventListener('click', (event) => {
   handleOutsideTap();
 });
 
-const ctx = document.getElementById('weight-chart').getContext('2d')
-
-// Storage key for persisted entries
+// Storage keys for persisted entries and goal weight
 const STORAGE_KEY = 'weight-tracker-entries-v1'
+const GOAL_STORAGE_KEY = 'weight-tracker-goal-v1'
 
 // Defaults (MM/DD labels and values) — converted to ISO when used
 const DEFAULT_LABELS = ['01/01', '01/02', '01/03']
 const DEFAULT_DATA = [65, 64.5, 64.2]
+const DEFAULT_GOAL = 55
+
+// Get chart context
+const ctx = document.getElementById('weight-chart').getContext('2d')
+
+// Load goal early so it's available for the chart plugin
+let goal = loadGoal()
+
+// Custom plugin to draw goal line with label
+const goalLinePlugin = {
+  id: 'goalLine',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    const yAxis = chart.scales.y;
+    const xAxis = chart.scales.x;
+    
+    if (!yAxis || !xAxis) return;
+    
+    // Get the pixel position of the goal weight on the Y-axis
+    const goalPixelY = yAxis.getPixelForValue(goal);
+    
+    // Draw horizontal line
+    ctx.strokeStyle = 'hsl(224,16%,72%)'; // Primary color
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xAxis.left, goalPixelY);
+    ctx.lineTo(xAxis.right, goalPixelY);
+    ctx.stroke();
+    
+    const labelX = xAxis.left + 8;
+    const labelY = goalPixelY - 14;
+    
+    // Draw text label with background
+    ctx.font = 'bold 12px "Poppins", sans-serif';
+    ctx.textAlign = 'left';
+    
+    // Measure text width
+    const text = `Goal: ${goal}kg`;
+    const textMetrics = ctx.measureText(text);
+    const textWidth = textMetrics.width;
+    const textHeight = 12; // Font size
+    
+    // Calculate background dimensions with 4px padding
+    const padding = 6;
+    const bgX = labelX + 12 - padding;
+    const bgY = labelY + 18 - textHeight - padding;
+    const bgWidth = textWidth + (padding * 2);
+    const bgHeight = textHeight + (padding * 2);
+    const borderRadius = 6;
+    
+    // Draw rounded rectangle background
+    ctx.fillStyle = 'hsl(220, 14%, 96%)'; // --surface-container color
+    ctx.beginPath();
+    ctx.moveTo(bgX + borderRadius, bgY);
+    ctx.lineTo(bgX + bgWidth - borderRadius, bgY);
+    ctx.arcTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + borderRadius, borderRadius);
+    ctx.lineTo(bgX + bgWidth, bgY + bgHeight - borderRadius);
+    ctx.arcTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - borderRadius, bgY + bgHeight, borderRadius);
+    ctx.lineTo(bgX + borderRadius, bgY + bgHeight);
+    ctx.arcTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - borderRadius, borderRadius);
+    ctx.lineTo(bgX, bgY + borderRadius);
+    ctx.arcTo(bgX, bgY, bgX + borderRadius, bgY, borderRadius);
+    ctx.fill();
+    
+    // Draw text label
+    ctx.fillStyle = 'hsl(215,28%,18%)'; // Primary color
+    ctx.fillText(text, labelX + 12, labelY + 18);
+  }
+};
 
 // Create the chart with empty data; we'll populate from storage (or defaults)
 const myChart = new Chart(ctx, {
@@ -266,8 +360,8 @@ const myChart = new Chart(ctx, {
         beginAtZero: false,
         title: { display: false, text: 'Weight (kg)'},
         grid: {display:false},
-        suggestedMin: 55,
-        suggestedMax: 66
+        min: Math.max(goal - 5, 50), // Ensure goal line is visible with 5kg padding below
+        max: goal + 11
       }
     },
     onClick: (event, elements) => {
@@ -284,7 +378,8 @@ const myChart = new Chart(ctx, {
         isClickingChart = false;
       }, 0);
     }
-  }
+  },
+  plugins: [goalLinePlugin]
 })
 
 // Helpers to persist entries as [{iso: 'YYYY-MM-DD', weight: number}, ...]
@@ -310,6 +405,18 @@ function saveEntries(entries) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)) } catch (e) { console.warn('Failed to save entries', e) }
 }
 
+function loadGoal() {
+  try {
+    const raw = localStorage.getItem(GOAL_STORAGE_KEY)
+    if (raw) return parseFloat(raw)
+  } catch (e) { console.warn('Failed to parse stored goal', e) }
+  return DEFAULT_GOAL
+}
+
+function saveGoal(goal) {
+  try { localStorage.setItem(GOAL_STORAGE_KEY, JSON.stringify(goal)) } catch (e) { console.warn('Failed to save goal', e) }
+}
+
 function renderChartFromEntries(entries) {
   // Chart labels should always show the date (MM/DD or MM/DD/YYYY),
   // while the bottom-sheet button can show 'Today'. Use a separate formatter.
@@ -332,6 +439,7 @@ function formatChartLabel(isoDate) {
 
 // Initialize
 let entries = loadEntries()
+let bottomSheetMode = 'add' // 'add', 'edit', or 'edit-goal'
 // Ensure entries are sorted by date ascending
 function sortEntries() {
   entries.sort((a, b) => a.iso.localeCompare(b.iso))
@@ -681,11 +789,17 @@ saveBtn.addEventListener('click', function(){
     alert("Please enter valid number :p")
     return;
   }
-  // pass the selected date (ISO) so the chart label matches the picker
-  const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
   
-  if (activeDot !== null && activeDot >= 0) {
+  // Handle different bottom sheet modes
+  if (bottomSheetMode === 'edit-goal') {
+    // Edit goal weight mode
+    goal = newWeight
+    saveGoal(goal)
+    updateGoalWeightDisplay()
+    updateSummaryStats(entries)
+  } else if (activeDot !== null && activeDot >= 0) {
     // Edit mode: update the selected entry
+    const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
     const oldISO = entries[activeDot].iso;
     entries[activeDot].weight = newWeight;
     entries[activeDot].iso = selectedISO;
@@ -703,6 +817,7 @@ saveBtn.addEventListener('click', function(){
     }
   } else {
     // Add mode: use existing logic
+    const selectedISO = datePicker.value || new Date().toISOString().slice(0,10);
     updateMyChart(newWeight, selectedISO);
   }
   
@@ -711,6 +826,7 @@ saveBtn.addEventListener('click', function(){
   // Close the bottom sheet
   const overlayEl = document.getElementById('overlay');
   overlayEl.style.display = 'none';
+  bottomSheetMode = 'add'
   const openBtn = document.getElementById('open-bottom-sheet');
   if (activeDot === null) {
     openBtn.style.display = 'block';
@@ -727,6 +843,19 @@ function findEntryOnOrBefore(dateISO) {
     if (entries[i].iso <= dateISO) return entries[i]
   }
   return null
+}
+
+function updateGoalWeightDisplay() {
+  const goalWeightEl = document.getElementById('goal-weight-value');
+  if (goalWeightEl) {
+    animateTextChange(goalWeightEl, `${goal}kg`);
+  }
+  // Update the chart to reflect the new goal weight
+  if (myChart) {
+    myChart.options.scales.y.min = Math.max(goal - 5, 50);
+    myChart.options.scales.y.max = goal + 11;
+    myChart.update();
+  }
 }
 
 function findEntryOnOrAfter(dateISO) {
@@ -751,7 +880,6 @@ function updateSummaryStats(entriesArr) {
     const zeroText = '0.0kg'
     const staggerOrder = [
       { el: todayWeight, text: zeroText },
-      { el: weightToGoal, text: zeroText },
       { el: document.getElementById('total-weight-change'), text: zeroText },
       { el: todayWeightChange, text: zeroText },
       { el: thisWeekWeightChange, text: zeroText },
@@ -761,6 +889,7 @@ function updateSummaryStats(entriesArr) {
       if (!item.el) return
       animateTextChange(item.el, item.text, idx * STAGGER_MS)
     })
+    updateGoalWeightDisplay()
     return
   }
   // ensure sorted
@@ -768,10 +897,7 @@ function updateSummaryStats(entriesArr) {
   const first = entriesArr[0]
   const latest = entriesArr[entriesArr.length - 1]
 
-  // Today's weight and goal (values will be animated in a stagger after deltas computed)
-  const goal = 55
-
-  // Today change: compare to yesterday if available, else previous entry if any
+  // Today's weight
   // Use local today as primary reference; fall back to latest if no today's entry
   const todayISO = toLocalISO(new Date())
   let todayEntry = entriesArr.find(e => e.iso === todayISO) || latest
@@ -810,7 +936,6 @@ function updateSummaryStats(entriesArr) {
   const STAGGER_MS = 40;
   const staggerOrder = [
     { el: todayWeight, text: `${todayEntry.weight}kg` },
-    { el: weightToGoal, text: `${Math.abs((todayEntry.weight - goal)).toFixed(1)}kg` },
     { el: document.getElementById('total-weight-change'), text: `${(latest.weight - first.weight).toFixed(1)}kg` },
     { el: todayWeightChange, text: formatDelta(todayDelta) },
     { el: thisWeekWeightChange, text: formatDelta(weekDelta) },
@@ -821,6 +946,9 @@ function updateSummaryStats(entriesArr) {
     if (!item.el || typeof item.text === 'undefined') return
     animateTextChange(item.el, item.text, idx * STAGGER_MS)
   })
+  
+  // Update goal weight display
+  updateGoalWeightDisplay()
 }
 
 // Clear all stored entries and reset chart + animated summary to empty state
@@ -834,7 +962,6 @@ function clearAllEntries() {
   const zeroText = '0.0kg'
   const staggerOrder = [
     { el: todayWeight, text: zeroText },
-    { el: weightToGoal, text: zeroText },
     { el: document.getElementById('total-weight-change'), text: zeroText },
     { el: todayWeightChange, text: zeroText },
     { el: thisWeekWeightChange, text: zeroText },
