@@ -274,44 +274,23 @@ const goalLinePlugin = {
     ctx.lineTo(xAxis.right, goalPixelY);
     ctx.stroke();
     
-    const labelX = xAxis.left + 8;
-    const labelY = goalPixelY - 14;
-    
-    // Draw text label with background
+    // Draw text label 
     ctx.font = 'bold 12px "Poppins", sans-serif';
-    ctx.textAlign = 'left';
-    
+    ctx.textAlign = 'right';
+    const labelX = xAxis.right - 8;
+    const labelY = goalPixelY - 14;
+
     // Measure text width
     const text = `Goal: ${goal}kg`;
     const textMetrics = ctx.measureText(text);
     const textWidth = textMetrics.width;
     const textHeight = 12; // Font size
-    
-    // Calculate background dimensions with 4px padding
     const padding = 6;
-    const bgX = labelX + 12 - padding;
-    const bgY = labelY + 18 - textHeight - padding;
-    const bgWidth = textWidth + (padding * 2);
-    const bgHeight = textHeight + (padding * 2);
-    const borderRadius = 6;
-    
-    // Draw rounded rectangle background
-    ctx.fillStyle = 'hsl(220, 14%, 96%)'; // --surface-container color
-    ctx.beginPath();
-    ctx.moveTo(bgX + borderRadius, bgY);
-    ctx.lineTo(bgX + bgWidth - borderRadius, bgY);
-    ctx.arcTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + borderRadius, borderRadius);
-    ctx.lineTo(bgX + bgWidth, bgY + bgHeight - borderRadius);
-    ctx.arcTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - borderRadius, bgY + bgHeight, borderRadius);
-    ctx.lineTo(bgX + borderRadius, bgY + bgHeight);
-    ctx.arcTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - borderRadius, borderRadius);
-    ctx.lineTo(bgX, bgY + borderRadius);
-    ctx.arcTo(bgX, bgY, bgX + borderRadius, bgY, borderRadius);
-    ctx.fill();
+
     
     // Draw text label
     ctx.fillStyle = 'hsl(215,28%,18%)'; // Primary color
-    ctx.fillText(text, labelX + 12, labelY + 18);
+    ctx.fillText(text, labelX, labelY);
   }
 };
 
