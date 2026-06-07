@@ -316,7 +316,7 @@ input:focus {
 
 .goal-weight-edit-btn {
   background-color: var(--on-surface-container-high);
-  width: 32px;
+  width: 36px;
   height: auto;
   min-height: 100%;
   border-radius: 100px;

@@ -267,29 +267,52 @@ const goalLinePlugin = {
     const goalPixelY = yAxis.getPixelForValue(goal);
     
     // Draw horizontal line
-    ctx.strokeStyle = 'hsl(224,16%,72%)'; // Primary color
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'hsl(224, 16%, 72%)'; // Primary color
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([5, 5]);
     ctx.beginPath();
     ctx.moveTo(xAxis.left, goalPixelY);
-    ctx.lineTo(xAxis.right, goalPixelY);
+    ctx.lineTo(xAxis.right - 60, goalPixelY);
     ctx.stroke();
-    
-    // Draw text label 
-    ctx.font = 'bold 12px "Poppins", sans-serif';
-    ctx.textAlign = 'right';
-    const labelX = xAxis.right - 8;
-    const labelY = goalPixelY - 14;
+    ctx.setLineDash([]);
 
     // Measure text width
+    ctx.font = 'bold 8px "Poppins", sans-serif';
     const text = `Goal: ${goal}kg`;
     const textMetrics = ctx.measureText(text);
     const textWidth = textMetrics.width;
-    const textHeight = 12; // Font size
-    const padding = 6;
+    const textHeight = 8; // Font size
 
+    const padding = 6; // 要求的 padding
+    const borderRadius = 8;
+    
+    const bgX = xAxis.right - 60;
+    const bgWidth = textWidth + (padding * 2);
+    const bgHeight = textHeight + (padding * 2);
+    const bgY = goalPixelY - (bgHeight / 2);
+
+    ctx.textAlign = 'right';
+    const labelX = bgX + bgWidth - padding;
+    const labelY = bgY + padding + textHeight - 1;
+
+    // 4. 绘制圆角边框（Outline）
+    ctx.strokeStyle = 'hsl(224, 16%, 72%)'; // 边框颜色，可与虚线一致
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bgX + borderRadius, bgY);
+    ctx.lineTo(bgX + bgWidth - borderRadius, bgY);
+    ctx.arcTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + borderRadius, borderRadius);
+    ctx.lineTo(bgX + bgWidth, bgY + bgHeight - borderRadius);
+    ctx.arcTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - borderRadius, bgY + bgHeight, borderRadius);
+    ctx.lineTo(bgX + borderRadius, bgY + bgHeight);
+    ctx.arcTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - borderRadius, borderRadius);
+    ctx.lineTo(bgX, bgY + borderRadius);
+    ctx.arcTo(bgX, bgY, bgX + borderRadius, bgY, borderRadius);
+    ctx.closePath();
+    ctx.stroke(); // 注意这里是 stroke() 绘制线条，而不是 fill() 填充
     
     // Draw text label
-    ctx.fillStyle = 'hsl(215,28%,18%)'; // Primary color
+    ctx.fillStyle = 'hsl(243,75%,59%)'; // Primary color
     ctx.fillText(text, labelX, labelY);
   }
 };
