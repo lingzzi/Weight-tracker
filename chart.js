@@ -260,60 +260,61 @@ const goalLinePlugin = {
     const ctx = chart.ctx;
     const yAxis = chart.scales.y;
     const xAxis = chart.scales.x;
-    
-    if (!yAxis || !xAxis) return;
-    
-    // Get the pixel position of the goal weight on the Y-axis
+
+    if (!yAxis || !xAxis || typeof goal === 'undefined') return;
+
     const goalPixelY = yAxis.getPixelForValue(goal);
-    
-    // Draw horizontal line
-    ctx.strokeStyle = 'hsl(224, 16%, 72%)'; // Primary color
+
+    // 1. 准备文本和图标数据
+    const labelColor = 'hsl(243,75%,59%)';
+    const textStr = `Goal: ${goal}kg`;
+    const iconStr = '\ue153'; // Material "flag" 图标的 Unicode 编码
+    const spacing = 2;        // 图标与文字的间距
+
+    // 2. 测量尺寸
+    ctx.font = 'bold 8px "Poppins", sans-serif';
+    const textWidth = ctx.measureText(textStr).width;
+    const textHeight = 8;
+
+    // 测量图标宽度（图标字号通常与文本对齐或略大，这里设为 10px 保证视觉比例）
+    const iconFontSize = 12;
+    ctx.font = `${iconFontSize}px "Material Symbols Outlined"`;
+    const iconWidth = ctx.measureText(iconStr).width;
+
+    // 计算右侧组件的总宽度 (图标 + 间距 + 文字)
+    const totalWidth = iconWidth + spacing + textWidth;
+
+    // 3. 绘制虚线（让虚线刚好连接到图标的左侧）
+    ctx.strokeStyle = 'hsl(224, 16%, 72%)';
     ctx.lineWidth = 0.5;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
     ctx.moveTo(xAxis.left, goalPixelY);
-    ctx.lineTo(xAxis.right - 60, goalPixelY);
+    ctx.lineTo(xAxis.right - totalWidth, goalPixelY); // 虚线终点完美对齐图标左侧
     ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.setLineDash([]); // 恢复实线
 
-    // Measure text width
+    // 4. 坐标定位（从虚线终点向右依次排列）
+    const iconX = xAxis.right - totalWidth;
+    const textX = iconX + iconWidth + spacing;
+
+    // 垂直居中计算
+    const iconY = goalPixelY + (iconFontSize / 2) - 2; // 修正图标基线
+    const textY = goalPixelY + (textHeight / 2) - 1;   // 修正文字基线
+
+    // 5. 绘制 "flag" 图标
+    ctx.fillStyle = labelColor;
+    ctx.font = `${iconFontSize}px "Material Symbols Outlined", "Material Icons"`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle'; // 使用居中基线简化对齐
+    ctx.fillText(iconStr, iconX, iconY);
+
+    // 6. 绘制文字
     ctx.font = 'bold 8px "Poppins", sans-serif';
-    const text = `Goal: ${goal}kg`;
-    const textMetrics = ctx.measureText(text);
-    const textWidth = textMetrics.width;
-    const textHeight = 8; // Font size
+    ctx.fillText(textStr, textX, textY);
 
-    const padding = 6; // 要求的 padding
-    const borderRadius = 8;
-    
-    const bgX = xAxis.right - 60;
-    const bgWidth = textWidth + (padding * 2);
-    const bgHeight = textHeight + (padding * 2);
-    const bgY = goalPixelY - (bgHeight / 2);
-
-    ctx.textAlign = 'right';
-    const labelX = bgX + bgWidth - padding;
-    const labelY = bgY + padding + textHeight - 1;
-
-    // 4. 绘制圆角边框（Outline）
-    ctx.strokeStyle = 'hsl(224, 16%, 72%)'; // 边框颜色，可与虚线一致
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(bgX + borderRadius, bgY);
-    ctx.lineTo(bgX + bgWidth - borderRadius, bgY);
-    ctx.arcTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + borderRadius, borderRadius);
-    ctx.lineTo(bgX + bgWidth, bgY + bgHeight - borderRadius);
-    ctx.arcTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - borderRadius, bgY + bgHeight, borderRadius);
-    ctx.lineTo(bgX + borderRadius, bgY + bgHeight);
-    ctx.arcTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - borderRadius, borderRadius);
-    ctx.lineTo(bgX, bgY + borderRadius);
-    ctx.arcTo(bgX, bgY, bgX + borderRadius, bgY, borderRadius);
-    ctx.closePath();
-    ctx.stroke(); // 注意这里是 stroke() 绘制线条，而不是 fill() 填充
-    
-    // Draw text label
-    ctx.fillStyle = 'hsl(243,75%,59%)'; // Primary color
-    ctx.fillText(text, labelX, labelY);
+    // 良好习惯：重置 Canvas 基线状态
+    ctx.textBaseline = 'alphabetic';
   }
 };
 
