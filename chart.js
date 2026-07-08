@@ -357,7 +357,9 @@ const myChart = new Chart(ctx, {
       x: {
         title: { display: false, text: 'Date'},
         ticks: { autoSkip: true, maxRotation: 45},
-        grid: {display:false}
+        grid: {display:false},
+        min: totalDataPoints - 10,
+        max: totalDataPoints - 1
       },
       y: {
         beginAtZero: false,
@@ -380,6 +382,21 @@ const myChart = new Chart(ctx, {
       setTimeout(() => {
         isClickingChart = false;
       }, 0);
+    },
+    plugins: {
+      zoom: {
+        pan: {
+          enabled: true,       // 开启平移
+          mode: 'x',           // 只允许在 X 轴（左右）滑动
+          threshold: 10,       // 触发滑动的像素阈值
+        },
+        zoom: {
+          // 如果不需要手势放大缩小，可以把 zoom 禁用，只留 pan
+          wheel: { enabled: false },
+          pinch: { enabled: false },
+          mode: 'x',
+        }
+      }
     }
   },
   plugins: [goalLinePlugin]
@@ -583,14 +600,14 @@ function animateHideButtons() {
     openBtn.style.display = 'block';
     scheduleAnimationStep(() => {
       openBtn.classList.remove('scale-down');
-    }, 5); // Reduced from 10ms
-  }, 60); // Reduced from 100ms
+    }, 5); 
+  }, 60); 
   
   scheduleAnimationStep(() => {
     editDeleteContainer.style.display = 'none';
     isAnimating = false;
     pendingAnimationTimers = [];
-  }, 220); // Reduced from 300ms
+  }, 220);
 }
 
 /**
