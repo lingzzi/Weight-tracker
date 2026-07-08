@@ -8,134 +8,20 @@ const bottomSheetTitle = document.getElementById("bottom-sheet-title");
 const editDeleteContainer = document.getElementById("edit-delete-container");
 const editBtn = document.getElementById("edit-btn");
 const deleteBtn = document.getElementById("delete-btn");
-const weatherIconEl = document.getElementById('weather-icon');
 
-const WEATHER_CODE_EMOJI = {
-  0: '☀️',
-  1: '🌤️',
-  2: '⛅',
-  3: '☁️',
-  45: '🌫️',
-  48: '🌫️',
-  51: '🌦️',
-  53: '🌦️',
-  55: '🌧️',
-  56: '🌧️',
-  57: '🌧️',
-  61: '🌧️',
-  63: '🌧️',
-  65: '🌧️',
-  66: '🌧️',
-  67: '🌧️',
-  71: '🌨️',
-  73: '🌨️',
-  75: '🌨️',
-  77: '🌨️',
-  80: '🌧️',
-  81: '🌧️',
-  82: '⛈️',
-  85: '❄️',
-  86: '❄️',
-  95: '⛈️',
-  96: '⛈️',
-  99: '⛈️'
-};
-
-const WEATHER_CODE_LABEL = {
-  0: 'Clear',
-  1: 'Sunny',
-  2: 'Mostly sunny',
-  3: 'Cloudy',
-  45: 'Fog',
-  48: 'Fog',
-  51: 'Drizzle',
-  53: 'Light rain',
-  55: 'Rain',
-  56: 'Freezing drizzle',
-  57: 'Freezing rain',
-  61: 'Rain',
-  63: 'Rain',
-  65: 'Heavy rain',
-  66: 'Freezing rain',
-  67: 'Freezing rain',
-  71: 'Snow',
-  73: 'Snow',
-  75: 'Snow',
-  77: 'Snow',
-  80: 'Rain showers',
-  81: 'Rain showers',
-  82: 'Thunderstorm',
-  85: 'Snow showers',
-  86: 'Snow showers',
-  95: 'Thunderstorm',
-  96: 'Thunderstorm',
-  99: 'Thunderstorm'
-};
-
-function mapWeatherCodeToEmoji(code) {
-  return WEATHER_CODE_EMOJI[code] || '🌈';
-}
-
-function mapWeatherCodeToLabel(code) {
-  return WEATHER_CODE_LABEL[code] || 'Weather';
-}
-
-async function getLocationFromIp() {
-  const response = await fetch('https://ipapi.co/json/');
-  if (!response.ok) throw new Error('IP location lookup failed');
-  const data = await response.json();
-  return { lat: Number(data.latitude), lon: Number(data.longitude) };
-}
-
-function getGeolocation() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      getLocationFromIp().then(resolve).catch(reject);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lon: position.coords.longitude
-        });
-      },
-      async () => {
-        try {
-          const location = await getLocationFromIp();
-          resolve(location);
-        } catch (error) {
-          reject(error);
-        }
-      },
-      { timeout: 10000 }
-    );
-  });
-}
-
-async function fetchWeather(lat, lon) {
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
-  if (!response.ok) throw new Error('Weather API request failed');
-  return response.json();
-}
-
-async function initWeather() {
-  if (!weatherIconEl) return;
-
-  try {
-    const { lat, lon } = await getGeolocation();
-    const weatherData = await fetchWeather(lat, lon);
-    const current = weatherData.current_weather;
-    const code = current?.weathercode;
-
-    weatherIconEl.textContent = mapWeatherCodeToEmoji(code);
-  } catch (error) {
-    weatherIconEl.textContent = '☁️';
-    console.warn('Weather init failed', error);
-  }
-}
-
+/**
+ * STATE MACHINE: Interactive Dot Selection
+ * 
+ * States:
+ * - activeDot = null (no dot selected, "Add" button visible)
+ * - activeDot = index (dot selected, "Edit/Delete" buttons visible)
+ */
+let activeDot = null; // null | index
+let lastStateChangeTime = 0; // Timestamp of last state transition
+let isAnimating = false; // Prevent overlapping animations
+let isClickingChart = false; // Flag for chart click detection
+let pendingAnimationTimers = []; // Track animation timers for cancellation
+const DISMISS_DELAY_MS = 50; // Reduced from 300ms for snappier interaction (<100ms)
 
 // Initialize bottom-sheet handlers early so UI still works even if chart setup fails
 (function initBottomSheetHandlers(){
@@ -149,7 +35,7 @@ async function initWeather() {
     openBtn.addEventListener('click', () => {
       // Add mode - clear selection state
       activeDot = null;
-      bottomSheetMode = 'add'
+      bottomSheetMode = 'add';
       bottomSheetTitle.textContent = 'Add a record';
       inputWeight.value = '';
       datePicker.value = toLocalISO(new Date());
@@ -253,6 +139,12 @@ const ctx = document.getElementById('weight-chart').getContext('2d')
 // Load goal early so it's available for the chart plugin
 let goal = loadGoal()
 
+// Register chartjs-plugin-zoom when the CDN script is available
+const zoomPlugin = window.ChartZoom || window.chartZoom || window.ChartZoomPlugin
+if (zoomPlugin && typeof Chart?.register === 'function') {
+  Chart.register(zoomPlugin)
+}
+
 // Custom plugin to draw goal line with label
 const goalLinePlugin = {
   id: 'goalLine',
@@ -347,7 +239,24 @@ const myChart = new Chart(ctx, {
         callbacks: {
           label: context => `${context.parsed.y}kg`
         }
-      }
+      },
+      zoom: {
+        pan: {
+          enabled: true,
+          mode: 'x',
+          scaleMode: 'x',
+          threshold: 10
+        },
+        zoom: {
+          wheel: {
+            enabled: true
+          },
+          pinch: {
+            enabled: true
+          },
+          mode: 'x'
+        }
+      },
     },
     interaction: {
       mode: 'nearest',
@@ -357,16 +266,14 @@ const myChart = new Chart(ctx, {
       x: {
         title: { display: false, text: 'Date'},
         ticks: { autoSkip: true, maxRotation: 45},
-        grid: {display:false},
-        min: totalDataPoints - 10,
-        max: totalDataPoints - 1
+        grid: {display:false}
       },
       y: {
         beginAtZero: false,
         title: { display: false, text: 'Weight (kg)'},
         grid: {display:false},
-        min: Math.max(goal - 5, 50), // Ensure goal line is visible with 5kg padding below
-        max: goal + 11
+        suggestedMin: Math.max(goal - 5, 50), // Ensure goal line is visible with 5kg padding below
+        suggestedMax: goal + 11
       }
     },
     onClick: (event, elements) => {
@@ -383,21 +290,7 @@ const myChart = new Chart(ctx, {
         isClickingChart = false;
       }, 0);
     },
-    plugins: {
-      zoom: {
-        pan: {
-          enabled: true,       // 开启平移
-          mode: 'x',           // 只允许在 X 轴（左右）滑动
-          threshold: 10,       // 触发滑动的像素阈值
-        },
-        zoom: {
-          // 如果不需要手势放大缩小，可以把 zoom 禁用，只留 pan
-          wheel: { enabled: false },
-          pinch: { enabled: false },
-          mode: 'x',
-        }
-      }
-    }
+
   },
   plugins: [goalLinePlugin]
 })
@@ -437,11 +330,23 @@ function saveGoal(goal) {
   try { localStorage.setItem(GOAL_STORAGE_KEY, JSON.stringify(goal)) } catch (e) { console.warn('Failed to save goal', e) }
 }
 
+function syncChartViewport(entries) {
+  const count = entries?.length || 0
+  const startIndex = Math.max(count - 10, 0)
+  const endIndex = Math.max(count - 1, 0)
+
+  if (!myChart?.options?.scales?.x) return
+
+  myChart.options.scales.x.min = count <= 10 ? -0.5 : startIndex - 0.5
+  myChart.options.scales.x.max = count <= 10 ? count - 0.5 : endIndex + 0.5
+}
+
 function renderChartFromEntries(entries) {
   // Chart labels should always show the date (MM/DD or MM/DD/YYYY),
   // while the bottom-sheet button can show 'Today'. Use a separate formatter.
   myChart.data.labels = entries.map(e => formatChartLabel(e.iso))
   myChart.data.datasets[0].data = entries.map(e => e.weight)
+  syncChartViewport(entries)
   myChart.update()
 }
 
@@ -468,19 +373,7 @@ sortEntries()
 renderChartFromEntries(entries)
 updateSummaryStats(entries)
 
-/**
- * STATE MACHINE: Interactive Dot Selection
- * 
- * States:
- * - activeDot = null (no dot selected, "Add" button visible)
- * - activeDot = index (dot selected, "Edit/Delete" buttons visible)
- */
-let activeDot = null; // null | index
-let lastStateChangeTime = 0; // Timestamp of last state transition
-let isAnimating = false; // Prevent overlapping animations
-let isClickingChart = false; // Flag for chart click detection
-let pendingAnimationTimers = []; // Track animation timers for cancellation
-const DISMISS_DELAY_MS = 50; // Reduced from 300ms for snappier interaction (<100ms)
+
 
 /**
  * Cancel any pending animation timers
@@ -996,4 +889,3 @@ function clearAllEntries() {
 
 // Expose to global so UI-level handlers can call it
 window.clearAllEntries = clearAllEntries;
-initWeather();
