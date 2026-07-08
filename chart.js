@@ -356,7 +356,7 @@ const myChart = new Chart(ctx, {
     scales: {
       x: {
         title: { display: false, text: 'Date'},
-        ticks: { autoSkip: true, maxRotation: 45},
+        ticks: { autoSkip: true, maxRotation: 45, maxTicksLimit: 10 },
         grid: {display:false}
       },
       y: {
@@ -368,14 +368,18 @@ const myChart = new Chart(ctx, {
       }
     },
     onClick: (event, elements) => {
+      if (suppressNextChartClick) {
+        suppressNextChartClick = false;
+        return;
+      }
       // Mark that we're clicking on chart data (prevents document listener from dismissing)
       isClickingChart = true;
-      
+
       if (elements.length > 0) {
         const dataIndex = elements[0].index;
-        handleDotTap(dataIndex); // Use state machine
+        handleDotTap(visibleRangeStart + dataIndex); // Use state machine with the actual entry index
       }
-      
+
       // Reset flag after handler completes
       setTimeout(() => {
         isClickingChart = false;
@@ -384,6 +388,110 @@ const myChart = new Chart(ctx, {
   },
   plugins: [goalLinePlugin]
 })
+
+const MAX_VISIBLE_POINTS = 10;
+let visibleRangeStart = 0;
+let isDraggingChart = false;
+let dragStartX = 0;
+let dragStartIndex = 0;
+let suppressNextChartClick = false;
+
+function clampVisibleRangeStart(entriesCount, startIndex) {
+  const maxStart = Math.max(0, entriesCount - MAX_VISIBLE_POINTS);
+  return Math.min(Math.max(startIndex, 0), maxStart);
+}
+
+function updateChartViewport(entriesArr = entries) {
+  const sortedEntries = [...entriesArr].sort((a, b) => a.iso.localeCompare(b.iso));
+  const count = sortedEntries.length;
+
+  if (count <= MAX_VISIBLE_POINTS) {
+    visibleRangeStart = 0;
+  } else {
+    visibleRangeStart = clampVisibleRangeStart(count, visibleRangeStart);
+  }
+
+  const visibleEntries = sortedEntries.slice(visibleRangeStart, visibleRangeStart + MAX_VISIBLE_POINTS);
+  myChart.data.labels = visibleEntries.map(e => formatChartLabel(e.iso));
+  myChart.data.datasets[0].data = visibleEntries.map(e => e.weight);
+  myChart.options.scales.x.ticks.maxTicksLimit = MAX_VISIBLE_POINTS;
+
+  if (activeDot !== null && (activeDot < visibleRangeStart || activeDot >= visibleRangeStart + visibleEntries.length)) {
+    activeDot = null;
+    const openBtn = document.getElementById('open-bottom-sheet');
+    const actionBar = document.querySelector('.action-bar');
+    if (openBtn) {
+      openBtn.style.display = 'block';
+      openBtn.classList.remove('scale-down');
+    }
+    if (editDeleteContainer) {
+      editDeleteContainer.classList.remove('show');
+      editDeleteContainer.style.display = 'none';
+    }
+    if (actionBar) actionBar.classList.remove('goal-mode');
+  }
+
+  myChart.update();
+  return visibleEntries;
+}
+
+const chartCanvas = myChart.canvas;
+chartCanvas.style.touchAction = 'none';
+chartCanvas.style.cursor = 'grab';
+chartCanvas.style.userSelect = 'none';
+
+chartCanvas.addEventListener('pointerdown', (event) => {
+  isDraggingChart = true;
+  isClickingChart = true;
+  dragStartX = event.clientX;
+  dragStartIndex = visibleRangeStart;
+  chartCanvas.setPointerCapture(event.pointerId);
+  chartCanvas.style.cursor = 'grabbing';
+});
+
+chartCanvas.addEventListener('pointermove', (event) => {
+  if (!isDraggingChart) return;
+
+  const deltaX = event.clientX - dragStartX;
+  const pixelPerPoint = Math.max(24, chartCanvas.clientWidth / Math.max(1, MAX_VISIBLE_POINTS - 1));
+  const stepDelta = Math.round(deltaX / pixelPerPoint);
+
+  if (stepDelta === 0) return;
+
+  const maxStart = Math.max(0, entries.length - MAX_VISIBLE_POINTS);
+  const nextStart = Math.min(Math.max(dragStartIndex + stepDelta, 0), maxStart);
+
+  if (nextStart !== visibleRangeStart) {
+    visibleRangeStart = nextStart;
+    updateChartViewport(entries);
+    suppressNextChartClick = true;
+  }
+
+  dragStartX = event.clientX;
+  dragStartIndex = visibleRangeStart;
+});
+
+function stopChartDrag(event) {
+  if (!isDraggingChart) return;
+
+  isDraggingChart = false;
+  chartCanvas.style.cursor = 'grab';
+  setTimeout(() => {
+    isClickingChart = false;
+  }, 0);
+
+  if (event?.pointerId != null) {
+    try {
+      chartCanvas.releasePointerCapture(event.pointerId);
+    } catch (error) {
+      // Ignore release errors when the pointer is no longer captured
+    }
+  }
+}
+
+chartCanvas.addEventListener('pointerup', stopChartDrag);
+chartCanvas.addEventListener('pointerleave', stopChartDrag);
+chartCanvas.addEventListener('pointercancel', stopChartDrag);
 
 // Helpers to persist entries as [{iso: 'YYYY-MM-DD', weight: number}, ...]
 function labelsToEntries(labels, data) {
@@ -421,11 +529,7 @@ function saveGoal(goal) {
 }
 
 function renderChartFromEntries(entries) {
-  // Chart labels should always show the date (MM/DD or MM/DD/YYYY),
-  // while the bottom-sheet button can show 'Today'. Use a separate formatter.
-  myChart.data.labels = entries.map(e => formatChartLabel(e.iso))
-  myChart.data.datasets[0].data = entries.map(e => e.weight)
-  myChart.update()
+  return updateChartViewport(entries)
 }
 
 // Always format date for chart labels (never return 'Today')
