@@ -16,6 +16,7 @@ const profileDialogBackdrop = document.getElementById('profile-dialog-backdrop')
 const profileDialogCancel = document.getElementById('profile-dialog-cancel');
 const profileDialogSave = document.getElementById('profile-dialog-save');
 const profileAvatarEditBtn = document.getElementById('profile-avatar-edit-btn');
+const profileAvatarInput = document.getElementById('profile-avatar-input');
 const profileNameInput = document.getElementById('profile-name-input');
 const activeProfileName = document.getElementById('active-profile-name');
 
@@ -30,29 +31,25 @@ let entries = [];
 let goal = DEFAULT_GOAL;
 let profiles = [];
 let activeProfileId = null;
-let pendingAvatarStyle = 0;
+let pendingAvatarImage = '';
 
 function createProfileId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `profile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function getAvatarLabel(name) {
-  const base = (name || 'A').trim();
-  if (!base) return 'A';
-  const words = base.split(/\s+/).filter(Boolean);
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+function getDefaultAvatarSvg() {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="60" fill="#d7dde9"/><circle cx="60" cy="48" r="22" fill="#99a2b3"/><path d="M30 98c6-18 20-26 30-26s24 8 30 26" fill="#99a2b3"/></svg>`)}`;
 }
 
-function getAvatarPalette(style = 0) {
-  const palettes = [
-    { background: 'linear-gradient(135deg, #6d7dff 0%, #3b82f6 100%)' },
-    { background: 'linear-gradient(135deg, #0f766e 0%, #34d399 100%)' },
-    { background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' },
-    { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' }
-  ];
-  return palettes[style % palettes.length];
+function applyAvatarStyle(element, profile) {
+  if (!element) return;
+  const avatarImage = profile?.avatarImage;
+  element.style.backgroundColor = '#d7dde9';
+  element.style.backgroundImage = avatarImage ? `url(${avatarImage})` : `url(${getDefaultAvatarSvg()})`;
+  element.style.backgroundSize = 'cover';
+  element.style.backgroundPosition = 'center';
+  element.style.backgroundRepeat = 'no-repeat';
 }
 
 function loadLegacyEntries() {
@@ -92,7 +89,7 @@ function loadProfiles() {
   return [{
     id: createProfileId(),
     name: 'Profile 1',
-    avatarStyle: 0,
+    avatarImage: '',
     entries: loadLegacyEntries(),
     goal: loadLegacyGoal()
   }];
@@ -113,7 +110,7 @@ function getActiveProfile() {
     profiles = [{
       id: createProfileId(),
       name: 'Profile 1',
-      avatarStyle: 0,
+      avatarImage: '',
       entries: [],
       goal: DEFAULT_GOAL
     }];
@@ -152,11 +149,11 @@ function updateProfileUI() {
   const profile = getActiveProfile();
   if (!profile) return;
 
-  const avatarText = profileAvatarInner;
-  const palette = getAvatarPalette(profile.avatarStyle || 0);
-  if (avatarText) avatarText.textContent = getAvatarLabel(profile.name);
+  if (profileAvatarInner) {
+    profileAvatarInner.textContent = '';
+  }
   if (profileAvatarBtn) {
-    profileAvatarBtn.style.background = palette.background;
+    applyAvatarStyle(profileAvatarBtn, profile);
   }
   if (activeProfileName) {
     activeProfileName.textContent = profile.name;
@@ -177,16 +174,39 @@ function renderProfileMenu() {
     button.className = 'profile-menu-item';
     if (profile.id === activeProfileId) button.classList.add('active');
 
+    const content = document.createElement('span');
+    content.className = 'profile-menu-item-content';
+
     const avatar = document.createElement('span');
     avatar.className = 'profile-menu-avatar';
-    avatar.textContent = getAvatarLabel(profile.name);
-    avatar.style.background = getAvatarPalette(profile.avatarStyle || 0).background;
+    avatar.textContent = '';
+    applyAvatarStyle(avatar, profile);
 
     const label = document.createElement('span');
     label.textContent = profile.name;
 
-    button.appendChild(avatar);
-    button.appendChild(label);
+    content.appendChild(avatar);
+    content.appendChild(label);
+
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'profile-menu-edit-btn';
+    editButton.innerHTML = '<span class="material-symbols-outlined">edit</span>';
+    editButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      activeProfileId = profile.id;
+      syncStateFromActiveProfile();
+      saveCurrentProfileData();
+      pendingAvatarImage = profile.avatarImage || '';
+      if (profileNameInput) profileNameInput.value = profile.name;
+      updateDialogAvatar();
+      profileDialogBackdrop.hidden = false;
+      profileNameInput?.focus();
+      closeProfileMenu();
+    });
+
+    button.appendChild(content);
+    button.appendChild(editButton);
     button.addEventListener('click', () => {
       activeProfileId = profile.id;
       syncStateFromActiveProfile();
@@ -224,14 +244,12 @@ function closeProfileMenu() {
 
 function updateDialogAvatar() {
   if (!profileAvatarEditBtn) return;
-  const palette = getAvatarPalette(pendingAvatarStyle);
-  profileAvatarEditBtn.style.background = palette.background;
-  profileAvatarEditBtn.textContent = getAvatarLabel(profileNameInput?.value || 'A');
+  applyAvatarStyle(profileAvatarEditBtn, { avatarImage: pendingAvatarImage || '' });
 }
 
 function openProfileDialog() {
   closeProfileMenu();
-  pendingAvatarStyle = 0;
+  pendingAvatarImage = '';
   if (profileNameInput) profileNameInput.value = '';
   updateDialogAvatar();
   profileDialogBackdrop.hidden = false;
@@ -262,26 +280,47 @@ profileDialogBackdrop?.addEventListener('click', (event) => {
 });
 
 profileAvatarEditBtn?.addEventListener('click', () => {
-  pendingAvatarStyle = (pendingAvatarStyle + 1) % 4;
-  updateDialogAvatar();
+  profileAvatarInput?.click();
+});
+
+profileAvatarInput?.addEventListener('change', (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingAvatarImage = reader.result;
+    updateDialogAvatar();
+  };
+  reader.readAsDataURL(file);
 });
 
 profileDialogSave?.addEventListener('click', () => {
   const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
-  const newProfile = {
-    id: createProfileId(),
-    name: profileName,
-    avatarStyle: pendingAvatarStyle,
-    entries: [...entries],
-    goal: goal
-  };
-  profiles.push(newProfile);
-  activeProfileId = newProfile.id;
+  const currentProfile = getActiveProfile();
+
+  if (currentProfile && currentProfile.id) {
+    currentProfile.name = profileName;
+    currentProfile.avatarImage = pendingAvatarImage;
+    currentProfile.entries = [...entries];
+    currentProfile.goal = goal;
+    saveCurrentProfileData();
+  } else {
+    const newProfile = {
+      id: createProfileId(),
+      name: profileName,
+      avatarImage: pendingAvatarImage,
+      entries: [...entries],
+      goal: goal
+    };
+    profiles.push(newProfile);
+    activeProfileId = newProfile.id;
+    persistProfiles();
+  }
+
   syncStateFromActiveProfile();
   renderChartFromEntries(entries);
   updateSummaryStats(entries);
   updateProfileUI();
-  persistProfiles();
   closeProfileDialog();
 });
 

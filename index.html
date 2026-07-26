@@ -71,7 +71,7 @@
           <div class="header-main">
             <div id="header-greeting">
               <button class="profile-avatar-btn" id="profile-avatar-btn" type="button" aria-label="Open profiles" aria-haspopup="menu" aria-expanded="false">
-                <span class="profile-avatar-inner" id="profile-avatar-inner">A</span>
+                <span class="profile-avatar-inner" id="profile-avatar-inner" aria-hidden="true"></span>
               </button>
               <div class="greeting-stack">
                 <span class="headline-large">Good morning!</span>
@@ -110,7 +110,13 @@
 
         <div class="profile-dialog-backdrop" id="profile-dialog-backdrop" hidden>
           <div class="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
-            <button class="profile-avatar-edit" id="profile-avatar-edit-btn" type="button" aria-label="Change avatar style">A</button>
+            <div class="profile-avatar-picker">
+              <button class="profile-avatar-edit" id="profile-avatar-edit-btn" type="button" aria-label="Choose avatar image"></button>
+              <label class="profile-avatar-overlay" for="profile-avatar-input" aria-label="Upload avatar image">
+                <span class="material-symbols-outlined">add_a_photo</span>
+              </label>
+              <input id="profile-avatar-input" type="file" accept="image/*" hidden />
+            </div>
             <input class="profile-name-input" id="profile-name-input" type="text" placeholder="name" maxlength="20" />
             <div class="profile-dialog-actions">
               <button id="profile-dialog-cancel" class="secondary-text-btn label-large" type="button">Cancel</button>
