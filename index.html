@@ -68,10 +68,21 @@
         <!-- Delete & Greeting -->
       
         <div class="header">
-      
-          <div id="header-greeting">
-            <span class="headline-large">Good morning!</span>
-            <span class="weather-icon" id="weather-icon" aria-label="Weather icon">☁️</span>
+          <div class="header-main">
+            <div id="header-greeting">
+              <button class="profile-avatar-btn" id="profile-avatar-btn" type="button" aria-label="Open profiles" aria-haspopup="menu" aria-expanded="false">
+                <span class="profile-avatar-inner" id="profile-avatar-inner">A</span>
+              </button>
+              <div class="greeting-stack">
+                <span class="headline-large">Good morning!</span>
+                <span class="profile-name-label" id="active-profile-name">Profile</span>
+              </div>
+              <span class="weather-icon" id="weather-icon" aria-label="Weather icon">☁️</span>
+            </div>
+
+            <div class="profile-menu" id="profile-menu" hidden>
+              <div class="profile-menu-list" id="profile-menu-list" role="menu"></div>
+            </div>
           </div>
 
           <button class="icon-button" id="open-dialog-btn" aria-label="Clear all records">
@@ -93,6 +104,17 @@
                 <button id="dialog-cancel" class="secondary-text-btn label-large">Cancel</button>
                 <button id="dialog-confirm" class="filled-secondary-btn label-large">Clear</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-dialog-backdrop" id="profile-dialog-backdrop" hidden>
+          <div class="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
+            <button class="profile-avatar-edit" id="profile-avatar-edit-btn" type="button" aria-label="Change avatar style">A</button>
+            <input class="profile-name-input" id="profile-name-input" type="text" placeholder="name" maxlength="20" />
+            <div class="profile-dialog-actions">
+              <button id="profile-dialog-cancel" class="secondary-text-btn label-large" type="button">Cancel</button>
+              <button id="profile-dialog-save" class="filled-primary-btn label-large" type="button">Save</button>
             </div>
           </div>
         </div>

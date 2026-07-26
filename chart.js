@@ -8,6 +8,288 @@ const bottomSheetTitle = document.getElementById("bottom-sheet-title");
 const editDeleteContainer = document.getElementById("edit-delete-container");
 const editBtn = document.getElementById("edit-btn");
 const deleteBtn = document.getElementById("delete-btn");
+const profileAvatarBtn = document.getElementById('profile-avatar-btn');
+const profileAvatarInner = document.getElementById('profile-avatar-inner');
+const profileMenu = document.getElementById('profile-menu');
+const profileMenuList = document.getElementById('profile-menu-list');
+const profileDialogBackdrop = document.getElementById('profile-dialog-backdrop');
+const profileDialogCancel = document.getElementById('profile-dialog-cancel');
+const profileDialogSave = document.getElementById('profile-dialog-save');
+const profileAvatarEditBtn = document.getElementById('profile-avatar-edit-btn');
+const profileNameInput = document.getElementById('profile-name-input');
+const activeProfileName = document.getElementById('active-profile-name');
+
+const PROFILE_STORAGE_KEY = 'weight-tracker-profiles-v2';
+const ACTIVE_PROFILE_STORAGE_KEY = 'weight-tracker-active-profile-v2';
+const STORAGE_KEY = 'weight-tracker-entries-v1';
+const GOAL_STORAGE_KEY = 'weight-tracker-goal-v1';
+const DEFAULT_LABELS = ['01/01', '01/02', '01/03'];
+const DEFAULT_DATA = [65, 64.5, 64.2];
+const DEFAULT_GOAL = 55;
+let entries = [];
+let goal = DEFAULT_GOAL;
+let profiles = [];
+let activeProfileId = null;
+let pendingAvatarStyle = 0;
+
+function createProfileId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `profile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getAvatarLabel(name) {
+  const base = (name || 'A').trim();
+  if (!base) return 'A';
+  const words = base.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+function getAvatarPalette(style = 0) {
+  const palettes = [
+    { background: 'linear-gradient(135deg, #6d7dff 0%, #3b82f6 100%)' },
+    { background: 'linear-gradient(135deg, #0f766e 0%, #34d399 100%)' },
+    { background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' },
+    { background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' }
+  ];
+  return palettes[style % palettes.length];
+}
+
+function loadLegacyEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to parse stored entries', e);
+  }
+  return labelsToEntries(DEFAULT_LABELS, DEFAULT_DATA);
+}
+
+function loadLegacyGoal() {
+  try {
+    const raw = localStorage.getItem(GOAL_STORAGE_KEY);
+    if (raw) return parseFloat(raw);
+  } catch (e) {
+    console.warn('Failed to parse stored goal', e);
+  }
+  return DEFAULT_GOAL;
+}
+
+function loadProfiles() {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to parse stored profiles', e);
+  }
+
+  return [{
+    id: createProfileId(),
+    name: 'Profile 1',
+    avatarStyle: 0,
+    entries: loadLegacyEntries(),
+    goal: loadLegacyGoal()
+  }];
+}
+
+function loadActiveProfileId() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
+    if (raw) return raw;
+  } catch (e) {
+    console.warn('Failed to parse active profile id', e);
+  }
+  return null;
+}
+
+function getActiveProfile() {
+  if (!profiles.length) {
+    profiles = [{
+      id: createProfileId(),
+      name: 'Profile 1',
+      avatarStyle: 0,
+      entries: [],
+      goal: DEFAULT_GOAL
+    }];
+  }
+  if (!activeProfileId) {
+    activeProfileId = profiles[0].id;
+  }
+  return profiles.find(profile => profile.id === activeProfileId) || profiles[0];
+}
+
+function persistProfiles() {
+  try {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
+    localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, activeProfileId || '');
+  } catch (e) {
+    console.warn('Failed to save profiles', e);
+  }
+}
+
+function syncStateFromActiveProfile() {
+  const profile = getActiveProfile();
+  if (!profile) return;
+  entries = Array.isArray(profile.entries) ? profile.entries : [];
+  goal = typeof profile.goal === 'number' ? profile.goal : DEFAULT_GOAL;
+}
+
+function saveCurrentProfileData() {
+  const profile = getActiveProfile();
+  if (!profile) return;
+  profile.entries = entries;
+  profile.goal = goal;
+  persistProfiles();
+}
+
+function updateProfileUI() {
+  const profile = getActiveProfile();
+  if (!profile) return;
+
+  const avatarText = profileAvatarInner;
+  const palette = getAvatarPalette(profile.avatarStyle || 0);
+  if (avatarText) avatarText.textContent = getAvatarLabel(profile.name);
+  if (profileAvatarBtn) {
+    profileAvatarBtn.style.background = palette.background;
+  }
+  if (activeProfileName) {
+    activeProfileName.textContent = profile.name;
+  }
+  if (profileNameInput) {
+    profileNameInput.value = profile.name;
+  }
+  renderProfileMenu();
+}
+
+function renderProfileMenu() {
+  if (!profileMenuList) return;
+  profileMenuList.innerHTML = '';
+
+  profiles.forEach(profile => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'profile-menu-item';
+    if (profile.id === activeProfileId) button.classList.add('active');
+
+    const avatar = document.createElement('span');
+    avatar.className = 'profile-menu-avatar';
+    avatar.textContent = getAvatarLabel(profile.name);
+    avatar.style.background = getAvatarPalette(profile.avatarStyle || 0).background;
+
+    const label = document.createElement('span');
+    label.textContent = profile.name;
+
+    button.appendChild(avatar);
+    button.appendChild(label);
+    button.addEventListener('click', () => {
+      activeProfileId = profile.id;
+      syncStateFromActiveProfile();
+      saveCurrentProfileData();
+      renderChartFromEntries(entries);
+      updateSummaryStats(entries);
+      updateProfileUI();
+      closeProfileMenu();
+    });
+
+    profileMenuList.appendChild(button);
+  });
+
+  const addButton = document.createElement('button');
+  addButton.type = 'button';
+  addButton.className = 'profile-menu-item profile-menu-add';
+  addButton.innerHTML = '<span class="material-symbols-outlined">add_circle</span><span>Add</span>';
+  addButton.addEventListener('click', () => {
+    openProfileDialog();
+  });
+  profileMenuList.appendChild(addButton);
+}
+
+function openProfileMenu() {
+  if (!profileMenu) return;
+  profileMenu.hidden = false;
+  profileAvatarBtn?.setAttribute('aria-expanded', 'true');
+}
+
+function closeProfileMenu() {
+  if (!profileMenu) return;
+  profileMenu.hidden = true;
+  profileAvatarBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function updateDialogAvatar() {
+  if (!profileAvatarEditBtn) return;
+  const palette = getAvatarPalette(pendingAvatarStyle);
+  profileAvatarEditBtn.style.background = palette.background;
+  profileAvatarEditBtn.textContent = getAvatarLabel(profileNameInput?.value || 'A');
+}
+
+function openProfileDialog() {
+  closeProfileMenu();
+  pendingAvatarStyle = 0;
+  if (profileNameInput) profileNameInput.value = '';
+  updateDialogAvatar();
+  profileDialogBackdrop.hidden = false;
+  profileNameInput?.focus();
+}
+
+function closeProfileDialog() {
+  if (profileDialogBackdrop) profileDialogBackdrop.hidden = true;
+}
+
+profiles = loadProfiles();
+activeProfileId = loadActiveProfileId();
+syncStateFromActiveProfile();
+updateProfileUI();
+
+profileAvatarBtn?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  if (profileMenu?.hidden) {
+    openProfileMenu();
+  } else {
+    closeProfileMenu();
+  }
+});
+
+profileDialogCancel?.addEventListener('click', closeProfileDialog);
+profileDialogBackdrop?.addEventListener('click', (event) => {
+  if (event.target === profileDialogBackdrop) closeProfileDialog();
+});
+
+profileAvatarEditBtn?.addEventListener('click', () => {
+  pendingAvatarStyle = (pendingAvatarStyle + 1) % 4;
+  updateDialogAvatar();
+});
+
+profileDialogSave?.addEventListener('click', () => {
+  const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
+  const newProfile = {
+    id: createProfileId(),
+    name: profileName,
+    avatarStyle: pendingAvatarStyle,
+    entries: [...entries],
+    goal: goal
+  };
+  profiles.push(newProfile);
+  activeProfileId = newProfile.id;
+  syncStateFromActiveProfile();
+  renderChartFromEntries(entries);
+  updateSummaryStats(entries);
+  updateProfileUI();
+  persistProfiles();
+  closeProfileDialog();
+});
+
+document.addEventListener('click', (event) => {
+  if (!profileMenu || profileMenu.hidden) return;
+  if (profileMenu.contains(event.target) || profileAvatarBtn?.contains(event.target)) return;
+  closeProfileMenu();
+});
 
 /**
  * STATE MACHINE: Interactive Dot Selection
@@ -124,20 +406,11 @@ document.addEventListener('click', (event) => {
   handleOutsideTap();
 });
 
-// Storage keys for persisted entries and goal weight
-const STORAGE_KEY = 'weight-tracker-entries-v1'
-const GOAL_STORAGE_KEY = 'weight-tracker-goal-v1'
-
-// Defaults (MM/DD labels and values) — converted to ISO when used
-const DEFAULT_LABELS = ['01/01', '01/02', '01/03']
-const DEFAULT_DATA = [65, 64.5, 64.2]
-const DEFAULT_GOAL = 55
-
 // Get chart context
 const ctx = document.getElementById('weight-chart').getContext('2d')
 
 // Load goal early so it's available for the chart plugin
-let goal = loadGoal()
+goal = loadGoal()
 
 // Register chartjs-plugin-zoom when the CDN script is available
 const zoomPlugin = window.ChartZoom || window.chartZoom || window.ChartZoomPlugin
@@ -307,27 +580,29 @@ function labelsToEntries(labels, data) {
 }
 
 function loadEntries() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch (e) { console.warn('Failed to parse stored entries', e) }
+  const profile = getActiveProfile()
+  if (profile?.entries && Array.isArray(profile.entries)) return profile.entries
   return labelsToEntries(DEFAULT_LABELS, DEFAULT_DATA)
 }
 
-function saveEntries(entries) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)) } catch (e) { console.warn('Failed to save entries', e) }
+function saveEntries(entriesArr) {
+  const profile = getActiveProfile()
+  if (!profile) return
+  profile.entries = entriesArr
+  persistProfiles()
 }
 
 function loadGoal() {
-  try {
-    const raw = localStorage.getItem(GOAL_STORAGE_KEY)
-    if (raw) return parseFloat(raw)
-  } catch (e) { console.warn('Failed to parse stored goal', e) }
+  const profile = getActiveProfile()
+  if (profile && typeof profile.goal === 'number') return profile.goal
   return DEFAULT_GOAL
 }
 
-function saveGoal(goal) {
-  try { localStorage.setItem(GOAL_STORAGE_KEY, JSON.stringify(goal)) } catch (e) { console.warn('Failed to save goal', e) }
+function saveGoal(goalValue) {
+  const profile = getActiveProfile()
+  if (!profile) return
+  profile.goal = goalValue
+  persistProfiles()
 }
 
 function syncChartViewport(entries) {
@@ -363,7 +638,8 @@ function formatChartLabel(isoDate) {
 }
 
 // Initialize
-let entries = loadEntries()
+entries = loadEntries()
+goal = loadGoal()
 let bottomSheetMode = 'add' // 'add', 'edit', or 'edit-goal'
 // Ensure entries are sorted by date ascending
 function sortEntries() {
