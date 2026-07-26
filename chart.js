@@ -32,6 +32,8 @@ let goal = DEFAULT_GOAL;
 let profiles = [];
 let activeProfileId = null;
 let pendingAvatarImage = '';
+let pendingAvatarPreviewUrl = '';
+let pendingAvatarFiles = [];
 let profileDialogMode = 'create';
 let profileDialogTargetId = null;
 
@@ -53,6 +55,61 @@ function applyAvatarStyle(element, profile) {
   element.style.backgroundPosition = 'center';
   element.style.backgroundRepeat = 'no-repeat';
 }
+
+function revokePendingAvatarPreview() {
+  if (pendingAvatarPreviewUrl) {
+    URL.revokeObjectURL(pendingAvatarPreviewUrl);
+    pendingAvatarPreviewUrl = '';
+  }
+}
+
+function resetPendingAvatarState() {
+  revokePendingAvatarPreview();
+  pendingAvatarImage = '';
+  pendingAvatarFiles = [];
+}
+
+function buildAvatarFormData(files = pendingAvatarFiles) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    if (file instanceof File) {
+      formData.append('images', file);
+    }
+  });
+  return formData;
+}
+
+function handleAvatarSelection(files) {
+  const selectedFiles = Array.from(files || []).filter((file) => file instanceof File && file.type?.startsWith('image/'));
+  if (!selectedFiles.length) return null;
+
+  revokePendingAvatarPreview();
+  pendingAvatarFiles = selectedFiles;
+  const primaryFile = selectedFiles[0];
+  pendingAvatarPreviewUrl = URL.createObjectURL(primaryFile);
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingAvatarImage = reader.result;
+    updateDialogAvatar();
+  };
+  reader.readAsDataURL(primaryFile);
+
+  return {
+    files: selectedFiles,
+    previewUrl: pendingAvatarPreviewUrl,
+    formData: buildAvatarFormData(selectedFiles)
+  };
+}
+
+function warnIfHybridWebView() {
+  const isAndroidWebView = /android/i.test(navigator.userAgent) && /(wv|webview)/i.test(navigator.userAgent);
+  if (isAndroidWebView) {
+    console.info('This app is running inside an Android WebView. If file picking is still failing, ensure WebChromeClient.onShowFileChooser is implemented natively.');
+  }
+}
+
+warnIfHybridWebView();
 
 function loadLegacyEntries() {
   try {
@@ -242,13 +299,15 @@ function closeProfileMenu() {
 
 function updateDialogAvatar() {
   if (!profileAvatarEditBtn) return;
-  applyAvatarStyle(profileAvatarEditBtn, { avatarImage: pendingAvatarImage || '' });
+  const avatarSource = pendingAvatarPreviewUrl || pendingAvatarImage || '';
+  applyAvatarStyle(profileAvatarEditBtn, { avatarImage: avatarSource });
 }
 
 function openProfileDialog(mode = 'create', profileToEdit = null) {
   closeProfileMenu();
   profileDialogMode = mode;
   profileDialogTargetId = mode === 'edit' ? (profileToEdit?.id || null) : null;
+  resetPendingAvatarState();
   pendingAvatarImage = profileToEdit?.avatarImage || '';
   if (profileNameInput) profileNameInput.value = profileToEdit?.name || '';
   updateDialogAvatar();
@@ -284,14 +343,11 @@ profileAvatarEditBtn?.addEventListener('click', () => {
 });
 
 profileAvatarInput?.addEventListener('change', (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingAvatarImage = reader.result;
-    updateDialogAvatar();
-  };
-  reader.readAsDataURL(file);
+  const files = event.target.files;
+  if (!files?.length) return;
+
+  handleAvatarSelection(files);
+  event.target.value = '';
 });
 
 profileDialogSave?.addEventListener('click', () => {
