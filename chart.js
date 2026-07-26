@@ -32,6 +32,8 @@ let goal = DEFAULT_GOAL;
 let profiles = [];
 let activeProfileId = null;
 let pendingAvatarImage = '';
+let profileDialogMode = 'create';
+let profileDialogTargetId = null;
 
 function createProfileId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -197,12 +199,8 @@ function renderProfileMenu() {
       activeProfileId = profile.id;
       syncStateFromActiveProfile();
       saveCurrentProfileData();
-      pendingAvatarImage = profile.avatarImage || '';
-      if (profileNameInput) profileNameInput.value = profile.name;
-      updateDialogAvatar();
-      profileDialogBackdrop.hidden = false;
-      profileNameInput?.focus();
       closeProfileMenu();
+      openProfileDialog('edit', profile);
     });
 
     button.appendChild(content);
@@ -225,7 +223,7 @@ function renderProfileMenu() {
   addButton.className = 'profile-menu-item profile-menu-add';
   addButton.innerHTML = '<span class="material-symbols-outlined">add_circle</span><span>Add</span>';
   addButton.addEventListener('click', () => {
-    openProfileDialog();
+    openProfileDialog('create');
   });
   profileMenuList.appendChild(addButton);
 }
@@ -247,10 +245,12 @@ function updateDialogAvatar() {
   applyAvatarStyle(profileAvatarEditBtn, { avatarImage: pendingAvatarImage || '' });
 }
 
-function openProfileDialog() {
+function openProfileDialog(mode = 'create', profileToEdit = null) {
   closeProfileMenu();
-  pendingAvatarImage = '';
-  if (profileNameInput) profileNameInput.value = '';
+  profileDialogMode = mode;
+  profileDialogTargetId = mode === 'edit' ? (profileToEdit?.id || null) : null;
+  pendingAvatarImage = profileToEdit?.avatarImage || '';
+  if (profileNameInput) profileNameInput.value = profileToEdit?.name || '';
   updateDialogAvatar();
   profileDialogBackdrop.hidden = false;
   profileNameInput?.focus();
@@ -296,28 +296,30 @@ profileAvatarInput?.addEventListener('change', (event) => {
 
 profileDialogSave?.addEventListener('click', () => {
   const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
-  const currentProfile = getActiveProfile();
 
-  if (currentProfile && currentProfile.id) {
-    currentProfile.name = profileName;
-    currentProfile.avatarImage = pendingAvatarImage;
-    currentProfile.entries = [...entries];
-    currentProfile.goal = goal;
-    saveCurrentProfileData();
+  if (profileDialogMode === 'edit' && profileDialogTargetId) {
+    const profileToEdit = profiles.find(profile => profile.id === profileDialogTargetId);
+    if (profileToEdit) {
+      profileToEdit.name = profileName;
+      profileToEdit.avatarImage = pendingAvatarImage;
+      activeProfileId = profileToEdit.id;
+      syncStateFromActiveProfile();
+      saveCurrentProfileData();
+    }
   } else {
     const newProfile = {
       id: createProfileId(),
       name: profileName,
       avatarImage: pendingAvatarImage,
-      entries: [...entries],
-      goal: goal
+      entries: [],
+      goal: DEFAULT_GOAL
     };
     profiles.push(newProfile);
     activeProfileId = newProfile.id;
     persistProfiles();
+    syncStateFromActiveProfile();
   }
 
-  syncStateFromActiveProfile();
   renderChartFromEntries(entries);
   updateSummaryStats(entries);
   updateProfileUI();
