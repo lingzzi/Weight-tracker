@@ -56,11 +56,6 @@ html, body {
   letter-spacing: 0.5px;
 }
 
-.weather-icon {
-  font-size: 1.7rem;
-  line-height: 1;
-}
-
 .title-large {
   font-family: var(--font-title);
   font-size: 20px;
@@ -348,8 +343,8 @@ input:focus {
 }
 
 .profile-menu-edit-btn {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 0;
   display: inline-flex;
