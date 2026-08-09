@@ -27,6 +27,7 @@ const GOAL_STORAGE_KEY = 'weight-tracker-goal-v1';
 const DEFAULT_LABELS = ['01/01', '01/02', '01/03'];
 const DEFAULT_DATA = [65, 64.5, 64.2];
 const DEFAULT_GOAL = 55;
+const DEFAULT_UNIT = 'kg';
 let entries = [];
 let goal = DEFAULT_GOAL;
 let profiles = [];
@@ -150,7 +151,8 @@ function loadProfiles() {
     name: 'Profile 1',
     avatarImage: '',
     entries: loadLegacyEntries(),
-    goal: loadLegacyGoal()
+    goal: loadLegacyGoal(),
+    unit: DEFAULT_UNIT
   }];
 }
 
@@ -177,8 +179,38 @@ function getActiveProfile() {
   if (!activeProfileId) {
     activeProfileId = profiles[0].id;
   }
-  return profiles.find(profile => profile.id === activeProfileId) || profiles[0];
+  const p = profiles.find(profile => profile.id === activeProfileId) || profiles[0];
+  if (!p.unit) p.unit = DEFAULT_UNIT;
+  return p;
 }
+
+// Unit helpers: profiles store weights in kilograms. The profile `unit` controls
+// how values are displayed/entered (either 'kg' or 'g'). Conversion helpers below
+function getActiveUnit() {
+  return (getActiveProfile()?.unit) || DEFAULT_UNIT;
+}
+
+function isUnitGram() {
+  return getActiveUnit() === 'g';
+}
+
+function displayMultiplier() {
+  return isUnitGram() ? 1000 : 1;
+}
+
+function convertToDisplay(weightKg) {
+  return (weightKg == null || isNaN(weightKg)) ? weightKg : weightKg * displayMultiplier();
+}
+
+function convertFromInput(value) {
+  return (value == null || value === '') ? null : (parseFloat(value) / displayMultiplier());
+}
+
+function formatDisplayNumber(value) {
+  if (isUnitGram()) return `${Math.round(value)}g`;
+  return `${(+value).toFixed(1)}kg`;
+}
+
 
 function persistProfiles() {
   try {
@@ -310,6 +342,19 @@ function openProfileDialog(mode = 'create', profileToEdit = null) {
   resetPendingAvatarState();
   pendingAvatarImage = profileToEdit?.avatarImage || '';
   if (profileNameInput) profileNameInput.value = profileToEdit?.name || '';
+  // initialize unit toggle in dialog
+  try {
+    const toggle = document.getElementById('profile-unit-toggle');
+    if (toggle) {
+      const selectedUnit = profileToEdit?.unit || DEFAULT_UNIT;
+      const buttons = Array.from(toggle.querySelectorAll('.unit-btn'));
+      buttons.forEach(b => {
+        b.style.background = (b.dataset.unit === selectedUnit) ? '#fff' : 'transparent';
+      });
+    }
+  } catch (e) {
+    // ignore
+  }
   updateDialogAvatar();
   profileDialogBackdrop.hidden = false;
   profileNameInput?.focus();
@@ -350,14 +395,29 @@ profileAvatarInput?.addEventListener('change', (event) => {
   event.target.value = '';
 });
 
+// small handler for unit toggle buttons if user clicks them directly
+const _profileUnitToggleEl = document.getElementById('profile-unit-toggle');
+if (_profileUnitToggleEl) {
+  _profileUnitToggleEl.addEventListener('click', (ev) => {
+    const btn = ev.target.closest && ev.target.closest('.unit-btn');
+    if (!btn) return;
+    const siblings = Array.from(_profileUnitToggleEl.querySelectorAll('.unit-btn'));
+    siblings.forEach(s => s.style.background = 'transparent');
+    btn.style.background = '#fff';
+  });
+}
+
 profileDialogSave?.addEventListener('click', () => {
   const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
+  const selectedUnitBtn = document.querySelector('#profile-unit-toggle .unit-btn[style*="background: #fff"]');
+  const selectedUnit = selectedUnitBtn?.dataset?.unit || DEFAULT_UNIT;
 
   if (profileDialogMode === 'edit' && profileDialogTargetId) {
     const profileToEdit = profiles.find(profile => profile.id === profileDialogTargetId);
     if (profileToEdit) {
       profileToEdit.name = profileName;
       profileToEdit.avatarImage = pendingAvatarImage;
+      profileToEdit.unit = selectedUnit;
       activeProfileId = profileToEdit.id;
       syncStateFromActiveProfile();
       saveCurrentProfileData();
@@ -368,7 +428,8 @@ profileDialogSave?.addEventListener('click', () => {
       name: profileName,
       avatarImage: pendingAvatarImage,
       entries: [],
-      goal: DEFAULT_GOAL
+      goal: DEFAULT_GOAL,
+      unit: selectedUnit
     };
     profiles.push(newProfile);
     activeProfileId = newProfile.id;
@@ -431,7 +492,7 @@ const DISMISS_DELAY_MS = 50; // Reduced from 300ms for snappier interaction (<10
       goalEditBtn.addEventListener('click', () => {
         bottomSheetMode = 'edit-goal'
         bottomSheetTitle.textContent = 'Edit goal weight';
-        inputWeight.value = goal.toString();
+        inputWeight.value = convertToDisplay(goal);
         if (datePicker) datePicker.style.display = 'none'; // Hide date picker for goal weight
         if (dateBtn) dateBtn.style.display = 'none';
         if (actionBar) actionBar.classList.add('goal-mode')
@@ -465,7 +526,7 @@ editBtn.addEventListener('click', (event) => {
   if (activeDot >= 0 && activeDot < entries.length) {
     const entry = entries[activeDot];
     bottomSheetTitle.textContent = 'Edit a record';
-    inputWeight.value = entry.weight;
+    inputWeight.value = convertToDisplay(entry.weight);
     datePicker.value = entry.iso;
     dateBtn.textContent = formatSelectedDate(entry.iso);
     const overlayEl = document.getElementById('overlay');
@@ -524,58 +585,73 @@ const goalLinePlugin = {
     const xAxis = chart.scales.x;
 
     if (!yAxis || !xAxis || typeof goal === 'undefined') return;
+    // Determine the goal value in display units (kg->g if needed)
+    const displayGoal = goal * displayMultiplier();
+    const yMin = yAxis.min;
+    const yMax = yAxis.max;
 
-    const goalPixelY = yAxis.getPixelForValue(goal);
-
-    // 1. 准备文本和图标数据
+    // Prepare text/icon data
     const labelColor = 'hsl(243,75%,59%)';
-    const textStr = `Goal: ${goal}kg`;
-    const iconStr = '\ue153'; // Material "flag" 图标的 Unicode 编码
-    const spacing = 2;        // 图标与文字的间距
+    const iconStr = '\ue153'; // Material flag
+    const spacing = 4;
 
-    // 2. 测量尺寸
+    // Text to show (include unit)
+    const textStr = isUnitGram() ? `Goal: ${Math.round(displayGoal)}g` : `Goal: ${(+goal).toFixed(1)}kg`;
+
     ctx.font = 'bold 8px "Poppins", sans-serif';
     const textWidth = ctx.measureText(textStr).width;
     const textHeight = 8;
 
-    // 测量图标宽度（图标字号通常与文本对齐或略大，这里设为 10px 保证视觉比例）
+    // If goal is outside visible Y range, draw only the label above the x-axis
+    if (displayGoal < yMin || displayGoal > yMax) {
+      // place the label just above the x axis, aligned to the right
+      const textX = xAxis.right - textWidth - 6;
+      const textY = xAxis.bottom - 10;
+      ctx.fillStyle = labelColor;
+      ctx.font = 'bold 8px "Poppins", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(textStr, textX, textY);
+      ctx.textBaseline = 'alphabetic';
+      return;
+    }
+
+    // Otherwise draw dashed line across and icon + label on the right
+    const goalPixelY = yAxis.getPixelForValue(displayGoal);
+
+    // measure icon width
     const iconFontSize = 12;
     ctx.font = `${iconFontSize}px "Material Symbols Outlined"`;
     const iconWidth = ctx.measureText(iconStr).width;
-
-    // 计算右侧组件的总宽度 (图标 + 间距 + 文字)
     const totalWidth = iconWidth + spacing + textWidth;
 
-    // 3. 绘制虚线（让虚线刚好连接到图标的左侧）
+    // draw dashed line ending before the label
     ctx.strokeStyle = 'hsl(224, 16%, 72%)';
     ctx.lineWidth = 0.5;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
     ctx.moveTo(xAxis.left, goalPixelY);
-    ctx.lineTo(xAxis.right - totalWidth, goalPixelY); // 虚线终点完美对齐图标左侧
+    ctx.lineTo(xAxis.right - totalWidth, goalPixelY);
     ctx.stroke();
-    ctx.setLineDash([]); // 恢复实线
+    ctx.setLineDash([]);
 
-    // 4. 坐标定位（从虚线终点向右依次排列）
+    // positions
     const iconX = xAxis.right - totalWidth;
     const textX = iconX + iconWidth + spacing;
+    const iconY = goalPixelY + (iconFontSize / 2) - 2;
+    const textY = goalPixelY + (textHeight / 2) - 1;
 
-    // 垂直居中计算
-    const iconY = goalPixelY + (iconFontSize / 2) - 2; // 修正图标基线
-    const textY = goalPixelY + (textHeight / 2) - 1;   // 修正文字基线
-
-    // 5. 绘制 "flag" 图标
+    // draw icon
     ctx.fillStyle = labelColor;
     ctx.font = `${iconFontSize}px "Material Symbols Outlined", "Material Icons"`;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle'; // 使用居中基线简化对齐
+    ctx.textBaseline = 'middle';
     ctx.fillText(iconStr, iconX, iconY);
 
-    // 6. 绘制文字
+    // draw text
     ctx.font = 'bold 8px "Poppins", sans-serif';
     ctx.fillText(textStr, textX, textY);
 
-    // 良好习惯：重置 Canvas 基线状态
     ctx.textBaseline = 'alphabetic';
   }
 };
@@ -607,7 +683,7 @@ const myChart = new Chart(ctx, {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: context => `${context.parsed.y}kg`
+          label: context => formatDisplayNumber(context.parsed.y)
         }
       },
       zoom: {
@@ -640,10 +716,9 @@ const myChart = new Chart(ctx, {
       },
       y: {
         beginAtZero: false,
-        title: { display: false, text: 'Weight (kg)'},
+        title: { display: false, text: 'Weight'},
         grid: {display:false},
-        suggestedMin: Math.max(goal - 5, 50), // Ensure goal line is visible with 5kg padding below
-        suggestedMax: goal + 11
+        // min/max will be computed dynamically per-profile when rendering
       }
     },
     onClick: (event, elements) => {
@@ -713,13 +788,54 @@ function syncChartViewport(entries) {
   myChart.options.scales.x.max = count <= 10 ? count - 0.5 : endIndex + 0.5
 }
 
+function computeYRange(entriesArr) {
+  const multiplier = displayMultiplier();
+  if (!entriesArr || entriesArr.length === 0) {
+    // No entries: base on goal with previous paddings (scaled to display unit)
+    const dGoal = goal * multiplier;
+    const padLow = isUnitGram() ? 50000 : 5; // roughly 50kg -> 50000g
+    const padHigh = isUnitGram() ? 110000 : 11;
+    return { min: Math.max(dGoal - padLow, isUnitGram() ? 0 : 0), max: dGoal + padHigh };
+  }
+
+  const values = entriesArr.map(e => (e.weight || 0) * multiplier);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const span = maxV - minV;
+
+  // Choose padding proportional to span, fallback to a small absolute pad
+  const basePad = isUnitGram() ? Math.max(50, Math.round(minV * 0.05)) : Math.max(0.5, minV * 0.05);
+  const padding = span > 0 ? Math.max(span * 0.15, basePad) : basePad;
+
+  let minOut = minV - padding;
+  let maxOut = maxV + padding;
+
+  if (isUnitGram()) {
+    minOut = Math.max(0, Math.floor(minOut));
+    maxOut = Math.ceil(maxOut);
+  } else {
+    minOut = Math.max(0, Math.floor(minOut * 10) / 10);
+    maxOut = Math.ceil(maxOut * 10) / 10;
+  }
+
+  return { min: minOut, max: maxOut };
+}
+
 function renderChartFromEntries(entries) {
   // Chart labels should always show the date (MM/DD or MM/DD/YYYY),
   // while the bottom-sheet button can show 'Today'. Use a separate formatter.
-  myChart.data.labels = entries.map(e => formatChartLabel(e.iso))
-  myChart.data.datasets[0].data = entries.map(e => e.weight)
-  syncChartViewport(entries)
-  myChart.update()
+  myChart.data.labels = entries.map(e => formatChartLabel(e.iso));
+  // convert stored kg to display units per-profile
+  myChart.data.datasets[0].data = entries.map(e => convertToDisplay(e.weight));
+  // compute dynamic Y range and apply
+  const yRange = computeYRange(entries);
+  if (!myChart.options) myChart.options = {};
+  if (!myChart.options.scales) myChart.options.scales = {};
+  if (!myChart.options.scales.y) myChart.options.scales.y = {};
+  myChart.options.scales.y.min = yRange.min;
+  myChart.options.scales.y.max = yRange.max;
+  syncChartViewport(entries);
+  myChart.update();
 }
 
 // Always format date for chart labels (never return 'Today')
@@ -1069,9 +1185,10 @@ function updateMyChart(value, isoDate) {
 
 
 saveBtn.addEventListener('click', function(){
-  const newWeight = parseFloat(inputWeight.value);
+  const inputVal = inputWeight.value;
+  const newWeight = convertFromInput(inputVal);
 
-  if (isNaN(newWeight)){
+  if (newWeight == null || isNaN(newWeight)){
     alert("Please enter valid number :p")
     return;
   }
@@ -1134,12 +1251,13 @@ function findEntryOnOrBefore(dateISO) {
 function updateGoalWeightDisplay() {
   const goalWeightEl = document.getElementById('goal-weight-value');
   if (goalWeightEl) {
-    animateTextChange(goalWeightEl, `${goal}kg`);
+    animateTextChange(goalWeightEl, formatDisplayNumber(convertToDisplay(goal)));
   }
   // Update the chart to reflect the new goal weight
   if (myChart) {
-    myChart.options.scales.y.min = Math.max(goal - 5, 50);
-    myChart.options.scales.y.max = goal + 11;
+    const yr = computeYRange(entries);
+    myChart.options.scales.y.min = yr.min;
+    myChart.options.scales.y.max = yr.max;
     myChart.update();
   }
 }
@@ -1152,10 +1270,17 @@ function findEntryOnOrAfter(dateISO) {
 }
 
 function formatDelta(delta) {
-  const rounded = Math.abs(delta).toFixed(1)
-  // show sign for negative values, show + for positive change
-  if (delta > 0) return `+${rounded}kg`
-  return `${(delta === 0 ? '0.0' : '-'+rounded)}kg`
+  const mul = displayMultiplier();
+  const val = delta * mul;
+  if (isUnitGram()) {
+    const absV = Math.round(Math.abs(val));
+    if (delta > 0) return `+${absV}g`;
+    if (delta === 0) return `0g`;
+    return `-${absV}g`;
+  }
+  const rounded = Math.abs(val).toFixed(1);
+  if (delta > 0) return `+${rounded}kg`;
+  return `${(delta === 0 ? '0.0' : '-'+rounded)}kg`;
 }
 
 function updateSummaryStats(entriesArr) {
@@ -1163,7 +1288,7 @@ function updateSummaryStats(entriesArr) {
     // No entries: animate summary fields to a zero/empty state so cleared
     // state persists visually after page reloads.
     const STAGGER_MS = 40;
-    const zeroText = '0.0kg'
+      const zeroText = formatDisplayNumber(0);
     const staggerOrder = [
       { el: todayWeight, text: zeroText },
       { el: document.getElementById('total-weight-change'), text: zeroText },
@@ -1220,9 +1345,10 @@ function updateSummaryStats(entriesArr) {
 
   // Now apply staggered animations from top-left -> bottom-right
   const STAGGER_MS = 40;
+  const multiplier = displayMultiplier();
   const staggerOrder = [
-    { el: todayWeight, text: `${todayEntry.weight}kg` },
-    { el: document.getElementById('total-weight-change'), text: `${(latest.weight - first.weight).toFixed(1)}kg` },
+    { el: todayWeight, text: formatDisplayNumber(convertToDisplay(todayEntry.weight)) },
+    { el: document.getElementById('total-weight-change'), text: formatDisplayNumber(convertToDisplay(latest.weight - first.weight)) },
     { el: todayWeightChange, text: formatDelta(todayDelta) },
     { el: thisWeekWeightChange, text: formatDelta(weekDelta) },
     { el: thisMonthWeightChange, text: formatDelta(monthDelta) }
@@ -1245,7 +1371,7 @@ function clearAllEntries() {
 
   // Animate summary values to an empty/zero state using same stagger
   const STAGGER_MS = 40;
-  const zeroText = '0.0kg'
+  const zeroText = formatDisplayNumber(0);
   const staggerOrder = [
     { el: todayWeight, text: zeroText },
     { el: document.getElementById('total-weight-change'), text: zeroText },

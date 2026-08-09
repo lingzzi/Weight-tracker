@@ -118,6 +118,13 @@
               <input id="profile-avatar-input" type="file" accept="image/*" multiple hidden />
             </div>
             <input class="profile-name-input" id="profile-name-input" type="text" placeholder="name" maxlength="20" />
+            <div class="profile-unit-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+              <label style="font-size:13px;color:var(--on-surface);">Unit</label>
+              <div id="profile-unit-toggle" style="display:flex;border-radius:8px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);">
+                <button type="button" data-unit="kg" class="unit-btn" style="padding:6px 10px;border:0;background:#fff;">kg</button>
+                <button type="button" data-unit="g" class="unit-btn" style="padding:6px 10px;border:0;background:transparent;">g</button>
+              </div>
+            </div>
             <div class="profile-dialog-actions">
               <button id="profile-dialog-cancel" class="secondary-text-btn label-large" type="button">Cancel</button>
               <button id="profile-dialog-save" class="filled-primary-btn label-large" type="button">Save</button>
