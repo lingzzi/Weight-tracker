@@ -375,6 +375,7 @@ function openProfileDialog(mode = 'create', profileToEdit = null) {
     const toggle = document.getElementById('profile-unit-toggle');
     if (toggle) {
       const selectedUnit = profileToEdit?.unit || DEFAULT_UNIT;
+      toggle.dataset.active = selectedUnit;
       const buttons = Array.from(toggle.querySelectorAll('.unit-btn'));
       buttons.forEach(b => {
         b.classList.toggle('selected', b.dataset.unit === selectedUnit);
@@ -429,9 +430,12 @@ if (_profileUnitToggleEl) {
   _profileUnitToggleEl.addEventListener('click', (ev) => {
     const btn = ev.target.closest && ev.target.closest('.unit-btn');
     if (!btn) return;
+    const selectedUnit = btn.dataset.unit;
+    if (!selectedUnit) return;
+
     const siblings = Array.from(_profileUnitToggleEl.querySelectorAll('.unit-btn'));
-    siblings.forEach(s => s.classList.remove('selected'));
-    btn.classList.add('selected');
+    siblings.forEach(s => s.classList.toggle('selected', s === btn));
+    _profileUnitToggleEl.dataset.active = selectedUnit;
   });
 }
 

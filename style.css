@@ -480,28 +480,52 @@ input:focus {
 }
 
 .profile-unit-toggle {
+  position: relative;
   display: flex;
   height:56px;
-  gap: 8px;
-  padding: 4px;
   border-radius: 999px;
-  background: #f3f4f6;
+  padding: 4px;
+  overflow: hidden;
+  background: var(--surface-container);
+}
+
+.profile-unit-toggle::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  background: white;
+  border-radius: 999px;
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 8px 18px rgba(32, 44, 81, 0.06);
+}
+
+.profile-unit-toggle[data-active='g']::before {
+  transform: translateX(100%);
 }
 
 .profile-unit-toggle .unit-btn {
+  position: relative;
+  z-index: 1;
   flex: 1 1 0;
   border: none;
   background: transparent;
-  border-radius: 999px;
   min-width: 62px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  color: hsl(216, 8%, 28%);
+  font-weight: 600;
+  transition: color 200ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .profile-unit-toggle .unit-btn.selected {
-  background: white;
   color: var(--on-surface);
-  border:var(--outline-variant) 1px solid;
+}
+
+.profile-unit-toggle .unit-btn:focus-visible {
+  outline: none;
 }
 
 .profile-dialog-actions {
