@@ -638,15 +638,7 @@ const goalLinePlugin = {
 
     // If goal is outside visible Y range, draw only the label above the x-axis
     if (displayGoal < yMin || displayGoal > yMax) {
-      // place the label just above the x axis, aligned to the right
-      const textX = xAxis.right - textWidth - 6;
-      const textY = xAxis.bottom - 10;
-      ctx.fillStyle = labelColor;
-      ctx.font = 'bold 8px "Poppins", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(textStr, textX, textY);
-      ctx.textBaseline = 'alphabetic';
+      // Goal is out of the visible range; hide the label entirely.
       return;
     }
 
