@@ -83,6 +83,15 @@ function buildAvatarFormData(files = pendingAvatarFiles) {
   return formData;
 }
 
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read avatar file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 function handleAvatarSelection(files) {
   const selectedFiles = Array.from(files || []).filter((file) => file instanceof File && file.type?.startsWith('image/'));
   if (!selectedFiles.length) return null;
@@ -92,18 +101,31 @@ function handleAvatarSelection(files) {
   const primaryFile = selectedFiles[0];
   pendingAvatarPreviewUrl = URL.createObjectURL(primaryFile);
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingAvatarImage = reader.result;
+  readFileAsDataURL(primaryFile).then((dataUrl) => {
+    pendingAvatarImage = dataUrl;
     updateDialogAvatar();
-  };
-  reader.readAsDataURL(primaryFile);
+  }).catch((error) => {
+    console.warn('Could not load selected avatar image', error);
+  });
 
   return {
     files: selectedFiles,
     previewUrl: pendingAvatarPreviewUrl,
     formData: buildAvatarFormData(selectedFiles)
   };
+}
+
+async function ensurePendingAvatarImageLoaded() {
+  if (pendingAvatarImage || !pendingAvatarFiles.length) return;
+  try {
+    const firstFile = pendingAvatarFiles[0];
+    if (firstFile) {
+      pendingAvatarImage = await readFileAsDataURL(firstFile);
+      updateDialogAvatar();
+    }
+  } catch (error) {
+    console.warn('Avatar image save was attempted before the file finished loading', error);
+  }
 }
 
 function warnIfHybridWebView() {
@@ -413,10 +435,12 @@ if (_profileUnitToggleEl) {
   });
 }
 
-profileDialogSave?.addEventListener('click', () => {
+profileDialogSave?.addEventListener('click', async () => {
   const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
   const selectedUnitBtn = document.querySelector('#profile-unit-toggle .unit-btn.selected');
   const selectedUnit = selectedUnitBtn?.dataset?.unit || DEFAULT_UNIT;
+
+  await ensurePendingAvatarImageLoaded();
 
   if (profileDialogMode === 'edit' && profileDialogTargetId) {
     const profileToEdit = profiles.find(profile => profile.id === profileDialogTargetId);
