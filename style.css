@@ -13,6 +13,7 @@
   --on-surface-variant:hsl(0,0%,25%);
   --error:#DB383B;
   --on-error:white;
+  --outline-variant:hsl(240, 5%, 84%);
 
   /* Font style */
   --font-display:"Fjalla One", sans-serif;
@@ -82,6 +83,15 @@ html, body {
   font-weight: 400;
   line-height: 20px;
   letter-spacing: 0.1px;
+  font-style: normal;
+}
+
+.body-medium{
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.3px;
   font-style: normal;
 }
 
@@ -174,7 +184,7 @@ html, body {
 }
 
 input {
-  height:50px;
+  height:56px;
   background-color: var(--surface-container);
   border:none;
   border-radius: 16px;
@@ -246,10 +256,9 @@ input:focus {
   font-size: 16px;
   color: var(--on-primary);
   background-color: #d7dde9;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23d7dde9'/%3E%3Ccircle cx='60' cy='48' r='22' fill='%2399a2b3'/%3E%3Cpath d='M30 98c6-18 20-26 30-26s24 8 30 26' fill='%2399a2b3'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='72' height='72' viewBox='0 0 72 72' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='72' height='72' rx='36' fill='%23F3F4F6'/%3E%3Cg clip-path='url(%23clip0_202_1286)'%3E%3Cmask id='mask0_202_1286' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='72' height='72'%3E%3Crect width='72' height='72' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_202_1286)'%3E%3Cpath d='M25.0531 36.4469C22.0177 33.4115 20.5 29.7625 20.5 25.5C20.5 21.2375 22.0177 17.5885 25.0531 14.5531C28.0885 11.5177 31.7375 10 36 10C40.2625 10 43.9115 11.5177 46.9469 14.5531C49.9823 17.5885 51.5 21.2375 51.5 25.5C51.5 29.7625 49.9823 33.4115 46.9469 36.4469C43.9115 39.4823 40.2625 41 36 41C31.7375 41 28.0885 39.4823 25.0531 36.4469ZM5 64.25V61.15C5 58.9542 5.5651 56.9359 6.69531 55.0953C7.82552 53.2547 9.32708 51.85 11.2 50.8813C15.2042 48.8792 19.2729 47.3776 23.4063 46.3766C27.5396 45.3755 31.7375 44.875 36 44.875C40.2625 44.875 44.4604 45.3755 48.5938 46.3766C52.7271 47.3776 56.7958 48.8792 60.8 50.8813C62.6729 51.85 64.1745 53.2547 65.3047 55.0953C66.4349 56.9359 67 58.9542 67 61.15V64.25C67 66.3813 66.2411 68.2057 64.7234 69.7234C63.2057 71.2411 61.3813 72 59.25 72H12.75C10.6188 72 8.79427 71.2411 7.27656 69.7234C5.75885 68.2057 5 66.3813 5 64.25Z' fill='%23E5E7EB'/%3E%3C/g%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_202_1286'%3E%3Crect width='72' height='72' rx='36' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E%0A");
   background-size: cover;
   background-position: center;
-  box-shadow: 0 10px 24px rgba(91, 89, 255, 0.24);
   flex-shrink: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -268,13 +277,6 @@ input:focus {
   letter-spacing: 0.04em;
 }
 
-.profile-name-label {
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--on-surface-variant);
-}
-
 .profile-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -283,7 +285,6 @@ input:focus {
   background: var(--surface);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 20px;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
   min-width: 220px;
   padding: 8px;
 }
@@ -393,18 +394,25 @@ input:focus {
 .profile-dialog {
   width: min(92vw, 360px);
   background: var(--surface);
-  border-radius: 24px;
-  padding: 24px;
+  border-radius: 32px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+  gap: 20px;
+}
+
+.profile-dialog-title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .profile-avatar-picker {
   position: relative;
-  width: 84px;
-  height: 84px;
+  width: 72px;
+  height: 72px;
   align-self: center;
 }
 
@@ -416,8 +424,8 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #d7dde9;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23d7dde9'/%3E%3Ccircle cx='60' cy='48' r='22' fill='%2399a2b3'/%3E%3Cpath d='M30 98c6-18 20-26 30-26s24 8 30 26' fill='%2399a2b3'/%3E%3C/svg%3E");
+  background-color: var(--surface-container);
+  background-image: url("data:image/svg+xml,%3Csvg width='72' height='72' viewBox='0 0 72 72' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='72' height='72' rx='36' fill='%23F3F4F6'/%3E%3Cg clip-path='url(%23clip0_202_1286)'%3E%3Cmask id='mask0_202_1286' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='72' height='72'%3E%3Crect width='72' height='72' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_202_1286)'%3E%3Cpath d='M25.0531 36.4469C22.0177 33.4115 20.5 29.7625 20.5 25.5C20.5 21.2375 22.0177 17.5885 25.0531 14.5531C28.0885 11.5177 31.7375 10 36 10C40.2625 10 43.9115 11.5177 46.9469 14.5531C49.9823 17.5885 51.5 21.2375 51.5 25.5C51.5 29.7625 49.9823 33.4115 46.9469 36.4469C43.9115 39.4823 40.2625 41 36 41C31.7375 41 28.0885 39.4823 25.0531 36.4469ZM5 64.25V61.15C5 58.9542 5.5651 56.9359 6.69531 55.0953C7.82552 53.2547 9.32708 51.85 11.2 50.8813C15.2042 48.8792 19.2729 47.3776 23.4063 46.3766C27.5396 45.3755 31.7375 44.875 36 44.875C40.2625 44.875 44.4604 45.3755 48.5938 46.3766C52.7271 47.3776 56.7958 48.8792 60.8 50.8813C62.6729 51.85 64.1745 53.2547 65.3047 55.0953C66.4349 56.9359 67 58.9542 67 61.15V64.25C67 66.3813 66.2411 68.2057 64.7234 69.7234C63.2057 71.2411 61.3813 72 59.25 72H12.75C10.6188 72 8.79427 71.2411 7.27656 69.7234C5.75885 68.2057 5 66.3813 5 64.25Z' fill='%23E5E7EB'/%3E%3C/g%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_202_1286'%3E%3Crect width='72' height='72' rx='36' fill='white'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E%0A");
   background-size: cover;
   background-position: center;
   color: var(--on-primary);
@@ -435,44 +443,70 @@ input:focus {
 
 .profile-avatar-overlay {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 30px;
-  height: 30px;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.64);
+  background: #404040;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
 
 .profile-avatar-overlay::after {
-  content: "+";
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: white;
-  color: #111827;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
+  display: none;
 }
 
 .profile-avatar-overlay .material-symbols-outlined {
-  font-size: 16px;
+  font-size: 20px;
+  transform: translateX(2px) translateY(2px);
 }
 
-.profile-name-input {
-  width: 100%;
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-unit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-unit-label {
+  font-size: 0.85rem;
+  color: var(--on-surface);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-unit-toggle {
+  display: flex;
+  height:56px;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #f3f4f6;
+}
+
+.profile-unit-toggle .unit-btn {
+  flex: 1 1 0;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  min-width: 62px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.profile-unit-toggle .unit-btn.selected {
+  background: white;
+  color: var(--on-surface);
+  border:var(--outline-variant) 1px solid;
 }
 
 .profile-dialog-actions {

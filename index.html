@@ -117,17 +117,20 @@
               </label>
               <input id="profile-avatar-input" type="file" accept="image/*" multiple hidden />
             </div>
-            <input class="profile-name-input" id="profile-name-input" type="text" placeholder="name" maxlength="20" />
-            <div class="profile-unit-row" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-              <label style="font-size:13px;color:var(--on-surface);">Unit</label>
-              <div id="profile-unit-toggle" style="display:flex;border-radius:8px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);">
-                <button type="button" data-unit="kg" class="unit-btn" style="padding:6px 10px;border:0;background:#fff;">kg</button>
-                <button type="button" data-unit="g" class="unit-btn" style="padding:6px 10px;border:0;background:transparent;">g</button>
+            <div class="profile-field">
+              <label class="title-small" for="profile-name-input">Name</label>
+              <input class="profile-name-input" id="profile-name-input" type="text" placeholder="Name" maxlength="20" />
+            </div>
+            <div class="profile-unit-row">
+              <label class="title-small" for="profile-unit-toggle">Unit</label>
+              <div id="profile-unit-toggle" class="profile-unit-toggle body-medium">
+                <button type="button" data-unit="kg" class="unit-btn">KG</button>
+                <button type="button" data-unit="g" class="unit-btn">G</button>
               </div>
             </div>
             <div class="profile-dialog-actions">
               <button id="profile-dialog-cancel" class="secondary-text-btn label-large" type="button">Cancel</button>
-              <button id="profile-dialog-save" class="filled-primary-btn label-large" type="button">Save</button>
+              <button id="profile-dialog-save" class="filled-secondary-btn label-large" type="button">Save</button>
             </div>
           </div>
         </div>
