@@ -360,6 +360,53 @@ function updateDialogAvatar() {
   applyAvatarStyle(profileAvatarEditBtn, { avatarImage: avatarSource });
 }
 
+function hasPendingAvatarChange() {
+  if (profileDialogMode !== 'edit' || !profileDialogTargetId) return false;
+  if (!pendingAvatarImage) return false;
+
+  const currentProfile = profiles.find(profile => profile.id === profileDialogTargetId);
+  return pendingAvatarImage !== (currentProfile?.avatarImage || '');
+}
+
+function saveProfileDialogChanges() {
+  return (async () => {
+    const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
+    const selectedUnitBtn = document.querySelector('#profile-unit-toggle .unit-btn.selected');
+    const selectedUnit = selectedUnitBtn?.dataset?.unit || DEFAULT_UNIT;
+
+    await ensurePendingAvatarImageLoaded();
+
+    if (profileDialogMode === 'edit' && profileDialogTargetId) {
+      const profileToEdit = profiles.find(profile => profile.id === profileDialogTargetId);
+      if (profileToEdit) {
+        profileToEdit.name = profileName;
+        profileToEdit.avatarImage = pendingAvatarImage;
+        profileToEdit.unit = selectedUnit;
+        activeProfileId = profileToEdit.id;
+        syncStateFromActiveProfile();
+        saveCurrentProfileData();
+      }
+    } else {
+      const newProfile = {
+        id: createProfileId(),
+        name: profileName,
+        avatarImage: pendingAvatarImage,
+        entries: [],
+        goal: DEFAULT_GOAL,
+        unit: selectedUnit
+      };
+      profiles.push(newProfile);
+      activeProfileId = newProfile.id;
+      persistProfiles();
+      syncStateFromActiveProfile();
+    }
+
+    renderChartFromEntries(entries);
+    updateSummaryStats(entries);
+    updateProfileUI();
+  })();
+}
+
 function openProfileDialog(mode = 'create', profileToEdit = null) {
   closeProfileMenu();
   profileDialogMode = mode;
@@ -407,9 +454,21 @@ profileAvatarBtn?.addEventListener('click', (event) => {
   }
 });
 
-profileDialogCancel?.addEventListener('click', closeProfileDialog);
-profileDialogBackdrop?.addEventListener('click', (event) => {
-  if (event.target === profileDialogBackdrop) closeProfileDialog();
+profileDialogCancel?.addEventListener('click', async () => {
+  if (hasPendingAvatarChange()) {
+    await saveProfileDialogChanges();
+  }
+  closeProfileDialog();
+});
+
+profileDialogBackdrop?.addEventListener('click', async (event) => {
+  if (event.target !== profileDialogBackdrop) return;
+
+  if (hasPendingAvatarChange()) {
+    await saveProfileDialogChanges();
+  }
+
+  closeProfileDialog();
 });
 
 profileAvatarEditBtn?.addEventListener('click', () => {
@@ -440,40 +499,7 @@ if (_profileUnitToggleEl) {
 }
 
 profileDialogSave?.addEventListener('click', async () => {
-  const profileName = (profileNameInput?.value || '').trim() || `Profile ${profiles.length + 1}`;
-  const selectedUnitBtn = document.querySelector('#profile-unit-toggle .unit-btn.selected');
-  const selectedUnit = selectedUnitBtn?.dataset?.unit || DEFAULT_UNIT;
-
-  await ensurePendingAvatarImageLoaded();
-
-  if (profileDialogMode === 'edit' && profileDialogTargetId) {
-    const profileToEdit = profiles.find(profile => profile.id === profileDialogTargetId);
-    if (profileToEdit) {
-      profileToEdit.name = profileName;
-      profileToEdit.avatarImage = pendingAvatarImage;
-      profileToEdit.unit = selectedUnit;
-      activeProfileId = profileToEdit.id;
-      syncStateFromActiveProfile();
-      saveCurrentProfileData();
-    }
-  } else {
-    const newProfile = {
-      id: createProfileId(),
-      name: profileName,
-      avatarImage: pendingAvatarImage,
-      entries: [],
-      goal: DEFAULT_GOAL,
-      unit: selectedUnit
-    };
-    profiles.push(newProfile);
-    activeProfileId = newProfile.id;
-    persistProfiles();
-    syncStateFromActiveProfile();
-  }
-
-  renderChartFromEntries(entries);
-  updateSummaryStats(entries);
-  updateProfileUI();
+  await saveProfileDialogChanges();
   closeProfileDialog();
 });
 
