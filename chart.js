@@ -28,8 +28,12 @@ const DEFAULT_LABELS = ['01/01', '01/02', '01/03'];
 const DEFAULT_DATA = [65, 64.5, 64.2];
 const DEFAULT_GOAL = 55;
 const DEFAULT_UNIT = 'kg';
+const DEFAULT_CHART_WINDOW = 10;
 let entries = [];
 let goal = DEFAULT_GOAL;
+let chartWindowStart = null;
+let chartWindowSize = DEFAULT_CHART_WINDOW;
+let chartDataCount = 0;
 let profiles = [];
 let activeProfileId = null;
 let pendingAvatarImage = '';
@@ -811,6 +815,52 @@ const myChart = new Chart(ctx, {
   plugins: [goalLinePlugin]
 })
 
+const chartCanvas = document.getElementById('weight-chart');
+let chartTouchStart = null;
+
+function getTouchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+chartCanvas.addEventListener('touchstart', (event) => {
+  if (event.touches.length === 1) {
+    chartTouchStart = {
+      x: event.touches[0].clientX,
+      start: chartWindowStart ?? Math.max(entries.length - chartWindowSize, 0)
+    };
+  } else if (event.touches.length === 2) {
+    chartTouchStart = {
+      distance: getTouchDistance(event.touches),
+      size: chartWindowSize,
+      center: chartWindowStart + chartWindowSize / 2
+    };
+  }
+}, { passive: true });
+
+chartCanvas.addEventListener('touchmove', (event) => {
+  if (!chartTouchStart || !entries.length) return;
+
+  if (event.touches.length === 1 && chartTouchStart.x !== undefined) {
+    const delta = event.touches[0].clientX - chartTouchStart.x;
+    const pixelsPerEntry = chartCanvas.clientWidth / Math.max(chartWindowSize, 1);
+    if (Math.abs(delta) > 8) {
+      event.preventDefault();
+      setChartViewport(chartTouchStart.start - Math.round(delta / pixelsPerEntry));
+    }
+  } else if (event.touches.length === 2 && chartTouchStart.distance) {
+    event.preventDefault();
+    const scale = chartTouchStart.distance / getTouchDistance(event.touches);
+    const nextSize = chartTouchStart.size * scale;
+    setChartViewport(chartTouchStart.center - nextSize / 2, nextSize);
+  }
+}, { passive: false });
+
+chartCanvas.addEventListener('touchend', () => {
+  chartTouchStart = null;
+}, { passive: true });
+
 // Helpers to persist entries as [{iso: 'YYYY-MM-DD', weight: number}, ...]
 function labelsToEntries(labels, data) {
   const year = new Date().getFullYear();
@@ -850,13 +900,34 @@ function saveGoal(goalValue) {
 
 function syncChartViewport(entries) {
   const count = entries?.length || 0
-  const startIndex = Math.max(count - 10, 0)
-  const endIndex = Math.max(count - 1, 0)
+  const wasAtNewest = chartDataCount > 0 && chartWindowStart !== null
+    && chartWindowStart + chartWindowSize >= chartDataCount
+  if (!count) {
+    chartWindowStart = 0;
+    chartWindowSize = DEFAULT_CHART_WINDOW;
+  } else {
+    chartWindowSize = Math.max(1, Math.min(chartWindowSize, count));
+    if (chartWindowStart === null || (count > chartDataCount && wasAtNewest)) {
+      chartWindowStart = Math.max(count - chartWindowSize, 0);
+    }
+    chartWindowStart = Math.max(0, Math.min(chartWindowStart, count - chartWindowSize));
+  }
+  chartDataCount = count;
 
   if (!myChart?.options?.scales?.x) return
 
-  myChart.options.scales.x.min = count <= 10 ? -0.5 : startIndex - 0.5
-  myChart.options.scales.x.max = count <= 10 ? count - 0.5 : endIndex + 0.5
+  myChart.options.scales.x.min = count ? chartWindowStart - 0.5 : -0.5
+  myChart.options.scales.x.max = count ? chartWindowStart + chartWindowSize - 0.5 : 0.5
+}
+
+function setChartViewport(start, size = chartWindowSize) {
+  const count = entries.length;
+  if (!count) return;
+
+  chartWindowSize = Math.max(1, Math.min(Math.round(size), count));
+  chartWindowStart = Math.max(0, Math.min(Math.round(start), count - chartWindowSize));
+  syncChartViewport(entries);
+  myChart.update('none');
 }
 
 function computeYRange(entriesArr) {

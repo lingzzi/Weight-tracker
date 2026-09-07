@@ -741,6 +741,7 @@ input:focus {
 
 #weight-chart {
   margin:16px 12px 16px 12px;
+  touch-action: none;
 }
 
 .FAB {
