@@ -878,8 +878,13 @@ const myChart = new Chart(ctx, {
             enabled: true
           },
           mode: 'x'
+        },
+        limits: {
+          x: {
+            minRange: DEFAULT_CHART_WINDOW
+          }
         }
-      },
+      }
     },
     interaction: {
       mode: 'nearest',
@@ -1008,13 +1013,18 @@ function syncChartViewport(entries) {
     chartWindowStart = 0;
     chartWindowSize = DEFAULT_CHART_WINDOW;
   } else {
-    chartWindowSize = Math.max(1, Math.min(chartWindowSize, count));
+    const minimumWindowSize = Math.min(count, DEFAULT_CHART_WINDOW);
+    chartWindowSize = Math.max(minimumWindowSize, Math.min(chartWindowSize, count));
     if (chartWindowStart === null || (count > chartDataCount && wasAtNewest)) {
       chartWindowStart = Math.max(count - chartWindowSize, 0);
     }
     chartWindowStart = Math.max(0, Math.min(chartWindowStart, count - chartWindowSize));
   }
   chartDataCount = count;
+
+  if (myChart?.options?.plugins?.zoom?.limits?.x) {
+    myChart.options.plugins.zoom.limits.x.minRange = Math.min(count || DEFAULT_CHART_WINDOW, DEFAULT_CHART_WINDOW);
+  }
 
   if (!myChart?.options?.scales?.x) return
 
@@ -1026,7 +1036,8 @@ function setChartViewport(start, size = chartWindowSize) {
   const count = entries.length;
   if (!count) return;
 
-  chartWindowSize = Math.max(1, Math.min(Math.round(size), count));
+  const minimumWindowSize = Math.min(count, DEFAULT_CHART_WINDOW);
+  chartWindowSize = Math.max(minimumWindowSize, Math.min(Math.round(size), count));
   chartWindowStart = Math.max(0, Math.min(Math.round(start), count - chartWindowSize));
   syncChartViewport(entries);
   myChart.update('none');
