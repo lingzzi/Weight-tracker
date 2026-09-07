@@ -83,12 +83,27 @@ function buildAvatarFormData(files = pendingAvatarFiles) {
   return formData;
 }
 
-function readFileAsDataURL(file) {
+function compressAvatarImage(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Failed to read avatar file'));
-    reader.readAsDataURL(file);
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      const size = Math.min(image.naturalWidth, image.naturalHeight);
+      const sourceX = (image.naturalWidth - size) / 2;
+      const sourceY = (image.naturalHeight - size) / 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
+      const context = canvas.getContext('2d');
+      context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 200, 200);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load avatar image'));
+    };
+    image.src = objectUrl;
   });
 }
 
@@ -101,7 +116,7 @@ function handleAvatarSelection(files) {
   const primaryFile = selectedFiles[0];
   pendingAvatarPreviewUrl = URL.createObjectURL(primaryFile);
 
-  readFileAsDataURL(primaryFile).then((dataUrl) => {
+  compressAvatarImage(primaryFile).then((dataUrl) => {
     pendingAvatarImage = dataUrl;
     updateDialogAvatar();
   }).catch((error) => {
@@ -120,7 +135,7 @@ async function ensurePendingAvatarImageLoaded() {
   try {
     const firstFile = pendingAvatarFiles[0];
     if (firstFile) {
-      pendingAvatarImage = await readFileAsDataURL(firstFile);
+      pendingAvatarImage = await compressAvatarImage(firstFile);
       updateDialogAvatar();
     }
   } catch (error) {
@@ -242,7 +257,11 @@ function persistProfiles() {
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
     localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, activeProfileId || '');
   } catch (e) {
-    console.warn('Failed to save profiles', e);
+    if (e?.name === 'QuotaExceededError' || e?.code === 22 || e?.code === 1014) {
+      alert('Unable to save profiles because browser storage is full. Try removing an avatar or clearing site storage.');
+    } else {
+      console.warn('Failed to save profiles', e);
+    }
   }
 }
 
