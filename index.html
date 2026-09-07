@@ -134,6 +134,24 @@
           </div>
         </div>
 
+        <div class="avatar-crop-backdrop" id="avatar-crop-backdrop" hidden>
+          <div class="avatar-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar-crop-title">
+            <div class="avatar-crop-header">
+              <div>
+                <p class="title-small">Move the square to choose the part to keep.</p>
+              </div>
+            </div>
+            <div class="avatar-crop-stage" id="avatar-crop-stage">
+              <img id="avatar-crop-image" alt="Avatar crop preview" draggable="false" />
+              <div class="avatar-crop-selection" id="avatar-crop-selection" role="slider" aria-label="Crop area" tabindex="0"></div>
+            </div>
+            <div class="avatar-crop-actions">
+              <button id="avatar-crop-cancel" class="secondary-text-btn label-large" type="button">Cancel</button>
+              <button id="avatar-crop-save" class="filled-secondary-btn label-large" type="button">Confirm</button>
+            </div>
+          </div>
+        </div>
+
         <div class="header-cards">
           <div class="card-vertical">
             <p class="title-small">Today's weight</p>

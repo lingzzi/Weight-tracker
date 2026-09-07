@@ -19,6 +19,13 @@ const profileAvatarEditBtn = document.getElementById('profile-avatar-edit-btn');
 const profileAvatarInput = document.getElementById('profile-avatar-input');
 const profileNameInput = document.getElementById('profile-name-input');
 const activeProfileName = document.getElementById('active-profile-name');
+const avatarCropBackdrop = document.getElementById('avatar-crop-backdrop');
+const avatarCropStage = document.getElementById('avatar-crop-stage');
+const avatarCropImage = document.getElementById('avatar-crop-image');
+const avatarCropSelection = document.getElementById('avatar-crop-selection');
+const avatarCropSave = document.getElementById('avatar-crop-save');
+const avatarCropCancel = document.getElementById('avatar-crop-cancel');
+const avatarCropClose = document.getElementById('avatar-crop-close');
 
 const PROFILE_STORAGE_KEY = 'weight-tracker-profiles-v2';
 const ACTIVE_PROFILE_STORAGE_KEY = 'weight-tracker-active-profile-v2';
@@ -39,6 +46,8 @@ let activeProfileId = null;
 let pendingAvatarImage = '';
 let pendingAvatarPreviewUrl = '';
 let pendingAvatarFiles = [];
+let avatarCropState = null;
+let avatarCropDragging = false;
 let profileDialogMode = 'create';
 let profileDialogTargetId = null;
 
@@ -87,30 +96,6 @@ function buildAvatarFormData(files = pendingAvatarFiles) {
   return formData;
 }
 
-function compressAvatarImage(file) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    image.onload = () => {
-      const size = Math.min(image.naturalWidth, image.naturalHeight);
-      const sourceX = (image.naturalWidth - size) / 2;
-      const sourceY = (image.naturalHeight - size) / 2;
-      const canvas = document.createElement('canvas');
-      canvas.width = 200;
-      canvas.height = 200;
-      const context = canvas.getContext('2d');
-      context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 200, 200);
-      URL.revokeObjectURL(objectUrl);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Failed to load avatar image'));
-    };
-    image.src = objectUrl;
-  });
-}
-
 function handleAvatarSelection(files) {
   const selectedFiles = Array.from(files || []).filter((file) => file instanceof File && file.type?.startsWith('image/'));
   if (!selectedFiles.length) return null;
@@ -119,13 +104,7 @@ function handleAvatarSelection(files) {
   pendingAvatarFiles = selectedFiles;
   const primaryFile = selectedFiles[0];
   pendingAvatarPreviewUrl = URL.createObjectURL(primaryFile);
-
-  compressAvatarImage(primaryFile).then((dataUrl) => {
-    pendingAvatarImage = dataUrl;
-    updateDialogAvatar();
-  }).catch((error) => {
-    console.warn('Could not load selected avatar image', error);
-  });
+  openAvatarCropper(pendingAvatarPreviewUrl);
 
   return {
     files: selectedFiles,
@@ -134,17 +113,140 @@ function handleAvatarSelection(files) {
   };
 }
 
-async function ensurePendingAvatarImageLoaded() {
-  if (pendingAvatarImage || !pendingAvatarFiles.length) return;
-  try {
-    const firstFile = pendingAvatarFiles[0];
-    if (firstFile) {
-      pendingAvatarImage = await compressAvatarImage(firstFile);
-      updateDialogAvatar();
-    }
-  } catch (error) {
-    console.warn('Avatar image save was attempted before the file finished loading', error);
+function clampCropPosition(x, y) {
+  const state = avatarCropState;
+  const maxX = state.imageLeft + state.imageWidth - state.selectionSize;
+  const maxY = state.imageTop + state.imageHeight - state.selectionSize;
+  return {
+    x: Math.max(state.imageLeft, Math.min(x, maxX)),
+    y: Math.max(state.imageTop, Math.min(y, maxY))
+  };
+}
+
+function renderCropSelection() {
+  if (!avatarCropState || !avatarCropSelection) return;
+  avatarCropSelection.style.width = `${avatarCropState.selectionSize}px`;
+  avatarCropSelection.style.height = `${avatarCropState.selectionSize}px`;
+  avatarCropSelection.style.transform = `translate(${avatarCropState.selectionX}px, ${avatarCropState.selectionY}px)`;
+}
+
+function closeAvatarCropper(discard = true) {
+  if (avatarCropBackdrop) avatarCropBackdrop.hidden = true;
+  if (avatarCropImage) avatarCropImage.removeAttribute('src');
+  avatarCropState = null;
+  avatarCropDragging = false;
+  if (discard) {
+    revokePendingAvatarPreview();
+    pendingAvatarFiles = [];
+    updateDialogAvatar();
   }
+}
+
+function openAvatarCropper(imageUrl) {
+  if (!avatarCropBackdrop || !avatarCropImage || !avatarCropStage) return;
+
+  avatarCropBackdrop.hidden = false;
+  avatarCropImage.onload = () => {
+    const stageSize = avatarCropStage.clientWidth;
+    const imageScale = Math.min(stageSize / avatarCropImage.naturalWidth, stageSize / avatarCropImage.naturalHeight);
+    const imageWidth = avatarCropImage.naturalWidth * imageScale;
+    const imageHeight = avatarCropImage.naturalHeight * imageScale;
+    const imageLeft = (stageSize - imageWidth) / 2;
+    const imageTop = (stageSize - imageHeight) / 2;
+    avatarCropImage.style.width = `${imageWidth}px`;
+    avatarCropImage.style.height = `${imageHeight}px`;
+    avatarCropImage.style.left = `${imageLeft}px`;
+    avatarCropImage.style.top = `${imageTop}px`;
+    const selectionSize = Math.min(190, imageWidth, imageHeight);
+    avatarCropState = {
+      imageLeft,
+      imageTop,
+      imageWidth,
+      imageHeight,
+      selectionSize,
+      selectionX: imageLeft + (imageWidth - selectionSize) / 2,
+      selectionY: imageTop + (imageHeight - selectionSize) / 2,
+      pointerOffsetX: 0,
+      pointerOffsetY: 0
+    };
+    renderCropSelection();
+  };
+  avatarCropImage.src = imageUrl;
+}
+
+function saveCroppedAvatar() {
+  if (!avatarCropState || !avatarCropImage) return;
+  const state = avatarCropState;
+  const sourceScale = avatarCropImage.naturalWidth / state.imageWidth;
+  const sourceX = (state.selectionX - state.imageLeft) * sourceScale;
+  const sourceY = (state.selectionY - state.imageTop) * sourceScale;
+  const sourceSize = state.selectionSize * sourceScale;
+  const outputSize = 160;
+  const canvas = document.createElement('canvas');
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  const context = canvas.getContext('2d');
+  context.drawImage(avatarCropImage, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
+  pendingAvatarImage = canvas.toDataURL('image/jpeg', 0.72);
+  revokePendingAvatarPreview();
+  pendingAvatarFiles = [];
+  closeAvatarCropper(false);
+  updateDialogAvatar();
+}
+
+avatarCropSelection?.addEventListener('pointerdown', (event) => {
+  if (!avatarCropState) return;
+  const stageRect = avatarCropStage.getBoundingClientRect();
+  avatarCropDragging = true;
+  avatarCropSelection.setPointerCapture(event.pointerId);
+  avatarCropState.pointerOffsetX = event.clientX - stageRect.left - avatarCropState.selectionX;
+  avatarCropState.pointerOffsetY = event.clientY - stageRect.top - avatarCropState.selectionY;
+});
+
+avatarCropSelection?.addEventListener('pointermove', (event) => {
+  if (!avatarCropState || !avatarCropDragging) return;
+  const stageRect = avatarCropStage.getBoundingClientRect();
+  const position = clampCropPosition(
+    event.clientX - stageRect.left - avatarCropState.pointerOffsetX,
+    event.clientY - stageRect.top - avatarCropState.pointerOffsetY
+  );
+  avatarCropState.selectionX = position.x;
+  avatarCropState.selectionY = position.y;
+  renderCropSelection();
+});
+
+avatarCropSelection?.addEventListener('pointerup', () => {
+  avatarCropDragging = false;
+});
+
+avatarCropSelection?.addEventListener('pointercancel', () => {
+  avatarCropDragging = false;
+});
+
+avatarCropSelection?.addEventListener('keydown', (event) => {
+  if (!avatarCropState) return;
+  const step = event.shiftKey ? 10 : 2;
+  let x = avatarCropState.selectionX;
+  let y = avatarCropState.selectionY;
+  if (event.key === 'ArrowLeft') x -= step;
+  if (event.key === 'ArrowRight') x += step;
+  if (event.key === 'ArrowUp') y -= step;
+  if (event.key === 'ArrowDown') y += step;
+  if (x !== avatarCropState.selectionX || y !== avatarCropState.selectionY) {
+    event.preventDefault();
+    const position = clampCropPosition(x, y);
+    avatarCropState.selectionX = position.x;
+    avatarCropState.selectionY = position.y;
+    renderCropSelection();
+  }
+});
+
+avatarCropSave?.addEventListener('click', saveCroppedAvatar);
+avatarCropCancel?.addEventListener('click', () => closeAvatarCropper());
+avatarCropClose?.addEventListener('click', () => closeAvatarCropper());
+
+async function ensurePendingAvatarImageLoaded() {
+  return pendingAvatarImage;
 }
 
 function warnIfHybridWebView() {

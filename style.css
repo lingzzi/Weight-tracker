@@ -534,6 +534,88 @@ input:focus {
   gap: 10px;
 }
 
+.avatar-crop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.avatar-crop-backdrop[hidden] {
+  display: none;
+}
+
+.avatar-crop-dialog {
+  width: min(92vw, 360px);
+  background: var(--surface);
+  border-radius: 28px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.avatar-crop-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.avatar-crop-header .icon-button {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.avatar-crop-stage {
+  position: relative;
+  width: min(78vw, 280px);
+  aspect-ratio: 1;
+  align-self: center;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #111827;
+  touch-action: none;
+}
+
+#avatar-crop-image {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.avatar-crop-selection {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.48), 0 2px 12px rgba(0, 0, 0, 0.32);
+  cursor: grab;
+  touch-action: none;
+}
+
+.avatar-crop-selection:active {
+  cursor: grabbing;
+}
+
+.avatar-crop-selection:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+}
+
+.avatar-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .header-cards {
   display: flex;
   gap: 12px;
