@@ -367,6 +367,15 @@ input:focus {
   font-weight: 600;
 }
 
+.profile-menu-export {
+  justify-content: flex-start;
+  color: var(--primary);
+}
+
+.profile-menu-export .material-symbols-outlined {
+  font-size: 20px;
+}
+
 .profile-menu-add .material-symbols-outlined {
   font-size: 20px;
 }

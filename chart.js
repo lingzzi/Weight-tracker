@@ -465,6 +465,16 @@ function renderProfileMenu() {
     openProfileDialog('create');
   });
   profileMenuList.appendChild(addButton);
+
+  const exportButton = document.createElement('button');
+  exportButton.type = 'button';
+  exportButton.className = 'profile-menu-item profile-menu-export';
+  exportButton.innerHTML = '<span class="material-symbols-outlined">download</span><span>Export for native app</span>';
+  exportButton.addEventListener('click', () => {
+    closeProfileMenu();
+    exportProfilesForNative();
+  });
+  profileMenuList.appendChild(exportButton);
 }
 
 function openProfileMenu() {
@@ -477,6 +487,30 @@ function closeProfileMenu() {
   if (!profileMenu) return;
   profileMenu.hidden = true;
   profileAvatarBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function exportProfilesForNative() {
+  try {
+    const exportData = {
+      format: 'weight-tracker-export',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      activeProfileId,
+      profiles
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `weight-tracker-export-${toLocalISO(new Date())}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    console.error('Failed to export profiles for the native app', error);
+    alert('Unable to export your data. Please try again.');
+  }
 }
 
 function updateDialogAvatar() {
